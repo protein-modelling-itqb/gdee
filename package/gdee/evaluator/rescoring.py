@@ -1,6 +1,7 @@
 """
 """
 
+import sys
 import numpy as np
 from path import Path
 import MDAnalysis as mda
@@ -9,6 +10,8 @@ from tempfile import TemporaryDirectory
 from .pdbqt import PDBQT
 from gdee.misc import DataContainer
 import warnings
+from oddt.virtualscreening import virtualscreening as vs
+import math
 
 warnings.filterwarnings("ignore", module=r"MDAnalysis.*")
 
@@ -25,14 +28,17 @@ def external_command(arguments, name):
         raise RuntimeError("Error processing job '{}':\n{}\n".format(name, proc.stderr.decode("UTF-8")))
 
 
-class BaseVina:
+class RescoringDocking:
     def __init__(self, parameters):
         self.parameters = parameters
-        self.name = ""
-        self.program = ""
         self.ligand = parameters["ligand"]
-        self.extra_arguments = []
         self.prepare_receptor = Path(parameters["mgltools"]) / "MGLToolsPckgs/AutoDockTools/Utilities24/prepare_receptor4.py"
+        self.name = "vina"
+        self.program = parameters["vina"]
+        self.n_cpu = -1
+        self.pickle_path = parameters["function"] # It can be a path to a pickle file or the name of the scoring function to train
+        self.ligands_type = "pdbqt"
+
 
     def run(self, job_data):
         job_dir = job_data.job_dir
@@ -84,7 +90,21 @@ class BaseVina:
                     docking.energies = [model.energy for model in pdbqt]
 
                     model.evals[self.ligand.name] = [docking]
-                        
+
+                    # run rescoring
+
+                    results, rescoring_method = self.run_rescoring("results.pdbqt", str(job_dir / model.pdb), self.pickle_path)
+
+                    rescoring = DataContainer()
+                    rescoring.ligand_name = self.ligand.name
+                    rescoring.ligand_file = self.ligand.filename
+                    rescoring.method = rescoring_method
+                    rescoring.pdb = results_pdb
+                    rescoring.energies = [self.kd_to_energy(float(results[index])) for index in range(0,len(results))]
+                       
+
+                    # Adding the results to job_data                    
+                    model.evals[self.ligand.name].append(rescoring)
 
                     
         return job_data
@@ -114,24 +134,54 @@ class BaseVina:
             "--ligand", "ligand.pdbqt",
             "--out", "results.pdbqt"
         ] + box_center.split(" ") + box_size.split(" ")
-        command += self.extra_arguments
         command = list(map(str, command))
 
         external_command(command, job_data.variant.name)
 
 
-class VinaDocking(BaseVina):
-    def __init__(self, parameters, *args, **kwargs):
-        super().__init__(parameters, *args, **kwargs)
-        self.name = "vina"
-        self.program = parameters["vina"]
+    
+    def run_rescoring(self, ligand, protein, pickle_path):
+        vs_rescore = vs(n_cpu=self.n_cpu)
+        vs_rescore.load_ligands(self.ligands_type, ligand)
+        vs_rescore.score(function=pickle_path, protein=protein)
+
+        # Save results
+        results =  []
+        rescoring_method = ''
+        for mol in vs_rescore.fetch():
+            data = mol.data.to_dict()
+            
+            if len(data) > 0:
+                data['name'] = mol.title
+            else:
+                print('There is no data', file=sys.stderr)
+                return False
+
+            for key in data:
+                if key.startswith('rf'):
+                    results.append(data[key])
+                    rescoring_method = key
+                elif key.startswith('nn'):
+                    results.append(data[key])
+                    rescoring_method = key
+                elif key.startswith('PLEC'):
+                    results.append(data[key])
+                    rescoring_method = key
+
+        return results, rescoring_method
 
 
-class VinardoDocking(BaseVina):
-    def __init__(self, parameters, *args, **kwargs):
-        super().__init__(parameters, *args, **kwargs)
-        self.name = "vinardo"
-        self.program = parameters["vinardo"]
-        self.extra_arguments = ["--scoring", "vinardo"]
+
+
+    def kd_to_energy(self, pkd):
+        R = 8.314
+        T = 298.15 
+        kd = pow(10, -(float(pkd)))
+        j = R * T * (math.log(float(kd)))
+        kj = j / 1000
+        kcal = kj / 4.18
+        return kcal
+
+    
 
 

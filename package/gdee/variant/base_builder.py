@@ -99,13 +99,16 @@ class BaseBuilder:
                                               model.scores.jsonfy(), model.pdb,
                                               model.rejected)
 
-            for ligand_name, evaluation in model.evals.items():
-                eval_id = self.db.register_evaluation(variant_id, model_id,
-                                                      evaluation)
-                pose_id_list = self.db.register_poses(eval_id, evaluation.energies)
+            for ligand_name, evaluations in model.evals.items():
+                for evaluation in evaluations:
+                    eval_id = self.db.register_evaluation(variant_id, model_id,
+                                                          evaluation)
+                    pose_id_list = self.db.register_poses(eval_id, evaluation.energies)
 
-                self.db.register_measurements(eval_id, pose_id_list,
-                                              evaluation.measurements)
+                    if evaluation.method == 'vina':
+
+                        self.db.register_measurements(eval_id, pose_id_list,
+                                                      evaluation.measurements)
 
         print("Ended with variant '{}'".format(data.variant.name))
 

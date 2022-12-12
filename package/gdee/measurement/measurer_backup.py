@@ -63,7 +63,7 @@ class Measurer:
         protein_pdb = None
         for model in modeling.models:
             if lig_name in model.evals:
-                ligand_pdb = model.evals[lig_name][0].pdb
+                ligand_pdb = model.evals[lig_name].pdb
                 protein_pdb = model.pdb
                 break
 
@@ -83,7 +83,7 @@ class Measurer:
             if lig_name not in model.evals:
                 continue
 
-            evaluation = model.evals[lig_name][0]
+            evaluation = model.evals[lig_name]
             protein.load_new(str(job_dir / model.pdb))
             ligand.load_new(str(job_dir / evaluation.pdb))
 

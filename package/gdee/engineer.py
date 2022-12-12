@@ -35,7 +35,7 @@ class ProteinEngineering:
         self.variant = {"name": "mutation", "matrix": "blosum62", "selection": "", "fixed": "", "conservative": True, "max_iterations": 1000, "combinations": -1, "msa": "", "excluded": {}, "excluded_all": ""}
         self.model = {"name": "modeller", "optimize_radius": 0, "num_models": 5, "optimize_level": 0}
         self.model_quality = {"norm_dope": -1, "voromqa": 0.4}
-        self.evaluator = {"name": "vina", "exhaustiveness": 50}
+        self.evaluator = {"name": "vina", "exhaustiveness": 50, "rescore_version": ""}
         self._pipeline = None
         self._terminate = False
         signal.signal(signal.SIGUSR1, self.catch_signals)
