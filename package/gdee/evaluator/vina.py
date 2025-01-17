@@ -1,7 +1,7 @@
 """
 """
 
-
+import os
 import numpy as np
 from path import Path
 import MDAnalysis as mda
@@ -34,6 +34,7 @@ class BaseVina:
         self.ligand = parameters["ligand"]
         self.extra_arguments = []
         self.prepare_receptor = Path(parameters["mgltools"]) / "MGLToolsPckgs/AutoDockTools/Utilities24/prepare_receptor4.py"
+        self.atm_type = parameters['atm_type']
 
     def run(self, job_data):
         job_dir = job_data.job_dir
@@ -92,11 +93,16 @@ class BaseVina:
             self.prepare_receptor,
             "-r", "model.pdb",
             "-o", "model.pdbqt",
-            "-A", "checkhydrogens",
+            "-A", "checkhydrogens"
         ]
 
         external_command(command, job_data.variant.name)
 
+        # Run atom type patch 
+        if self.atm_type:
+            self.atm_type_patch('model.pdbqt')
+
+        
         # Run docking
         box_center = "--center_x {:.2f} --center_y {:.2f} --center_z {:.2f}".format(*self.parameters["box_center"])
         box_size = "--size_x {:.2f} --size_y {:.2f} --size_z {:.2f}".format(*self.parameters["box_size"])
@@ -115,6 +121,26 @@ class BaseVina:
         command = list(map(str, command))
 
         external_command(command, job_data.variant.name)
+
+
+    def atm_type_patch(self, pdbqt):
+        new_pdbqt = 'model_patched.pdbqt'
+
+        with open(pdbqt, 'r') as f, open(new_pdbqt, 'w') as nf:
+            for line in f:
+                write_line = True
+                if line.startswith('ATOM'):
+                    atm = "{}:{}:{}".format(line[12:16].strip(), line[21:22], line[22:26].strip())
+                    if atm in self.atm_type:
+                        if self.atm_type[atm] == "r":
+                            write_line = False
+                        else:
+                            line = line[:77] + "{}\n".format(self.atm_type[atm])
+                if write_line:
+                    nf.write(line)
+
+        os.remove(pdbqt)
+        os.rename(new_pdbqt, pdbqt)
 
 
 class VinaDocking(BaseVina):
