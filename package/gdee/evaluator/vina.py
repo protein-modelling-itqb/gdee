@@ -93,7 +93,8 @@ class BaseVina:
             self.prepare_receptor,
             "-r", "model.pdb",
             "-o", "model.pdbqt",
-            "-A", "checkhydrogens"
+            "-A", "checkhydrogens",
+            "-U", "nphs_lps_waters"
         ]
 
         external_command(command, job_data.variant.name)
