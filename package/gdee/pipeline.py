@@ -31,9 +31,9 @@ class PipelineFactory:
         self.evaluator_parameters = {}
 
     def make(self):
-        self.pdb = Path(self.pdb).abspath()
+        self.pdb = Path(self.pdb).absolute()
         pipeline = Pipeline()
-        base_dir = Path(self.work_dir).abspath()
+        base_dir = Path(self.work_dir).absolute()
         pipeline.work_dir = base_dir / "files"
         pipeline.work_dir.makedirs_p()
 
@@ -76,7 +76,7 @@ class PipelineFactory:
 class Pipeline:
     def __init__(self):
         self.database = None
-        self.work_dir = Path().abspath()
+        self.work_dir = Path().absolute()
         self.archiver = files.Archiver("files", ".{:06d}", 1000)
         self._variant_builder = None
         self.task_list = []
