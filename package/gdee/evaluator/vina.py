@@ -131,6 +131,7 @@ class BaseVina:
             for line in f:
                 write_line = True
                 if line.startswith('ATOM'):
+                    # "{name}:{chain}:{id}"
                     atm = "{}:{}:{}".format(line[12:16].strip(), line[21:22], line[22:26].strip())
                     if atm in self.atm_type:
                         if self.atm_type[atm] == "r":

@@ -18,3 +18,7 @@ maintainer/dist_build/
 
 # Documentation build files
 docs/build/
+
+# Build
+package/build/
+package/*egg-info
