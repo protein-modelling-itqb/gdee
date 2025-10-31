@@ -38,7 +38,7 @@ class MSABuilder(BaseBuilder):
         variant_iter = iter(variant.flatten())
 
         is_wildtype = True
-        for query, match, target in zip(*alignment[0].format().split()):
+        for query, target in zip(alignment[0][0], alignment[0][1]):
             if query == "-":
                 continue
 
