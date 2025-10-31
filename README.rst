@@ -2,7 +2,7 @@
   Gene Discovery and Enzyme Engineering
 ========================================
 
-.. figure:: source/_static/images/cover2.png
+.. figure:: docs/source/_static/images/cover2.png
    :alt: GDEE Platform Banner
    :width: 800px
    :align: center
