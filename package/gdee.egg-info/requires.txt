@@ -1,0 +1,5 @@
+biopython>=1.75
+mdanalysis>=0.20
+mpi4py>=3.0
+numpy>=1.14
+path>=13.0

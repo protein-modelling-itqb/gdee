@@ -1,4 +1,8 @@
 """
+SQLite database interface for GDEE platform.
+
+This module provides database operations for storing and retrieving protein variants,
+3D models, docking evaluations, poses, and measurement data from the GDEE platform.
 """
 
 
@@ -7,6 +11,18 @@ import os
 
 
 def list_serialize(values):
+    """
+    Serialize a list of values to a pipe-delimited string format.
+    
+    Attempts to format numeric values to 4 decimal places, falls back
+    to string representation for non-numeric values.
+    
+    Args:
+        values (list): List of values to serialize
+        
+    Returns:
+        str: Pipe-delimited string representation of values
+    """
     try:
         return "|".join(map(lambda x: "{:.4f}".format(x), values))
     except ValueError:
@@ -16,7 +32,36 @@ def list_serialize(values):
 
 
 class Database:
+    """
+    SQLite database interface for GDEE platform data.
+
+    This class manages the storage and retrieval of GDEE platform
+    results including variants, 3D models, docking evaluations, poses, and measurements.
+    The database schema supports hierarchical data relationships and foreign key constraints.
+    
+    Database Schema:
+        - Proteins: Target protein information
+        - ProteinMetadata: Additional protein metadata
+        - Variants: Protein sequence variants
+        - Models: 3D structural models (MODELLER output)
+        - Evaluations: Molecular docking results
+        - Poses: Individual docking poses with energies
+        - Metrics: Metric definitions
+        - Measurements: Distance measurements
+    
+    Attributes:
+        filename (str): Path to SQLite database file
+        _conn: SQLite connection object (lazy initialized)
+        _metric_ids (dict): Cache for metric ID lookups
+    """
+    
     def __init__(self, filename):
+        """
+        Initialize database connection manager.
+        
+        Args:
+            filename (str): Path to SQLite database file (adds .sqlite3 extension if missing)
+        """
         if os.path.splitext(filename)[1] != ".sqlite3":
             filename += ".sqlite3"
 
@@ -25,12 +70,24 @@ class Database:
         self._metric_ids = {}
 
     def connect(self):
-        # Connect to database
+        """
+        Establish connection to SQLite database.
+        
+        Enables foreign key constraints and sets a 120-second timeout for database locks.
+        """
         self._conn = sql.connect(self.filename, timeout=120)
         self._conn.execute("PRAGMA foreign_keys = ON")
 
     def create_tables(self):
-        # Create tables
+        """
+        Create the complete database schema for GDEE platform.
+        
+        Creates tables with foreign key relationships:
+        - Proteins → Variants → Models → Evaluations → Poses
+        - Metrics → Measurements (linked to Poses)
+        
+        All tables use cascading deletes and updates for data integrity.
+        """
         with self.conn:
             self.conn.executescript(
                 "CREATE TABLE IF NOT EXISTS"
@@ -135,8 +192,15 @@ class Database:
 
     @property
     def conn(self):
-        # Database is connected only when needed to allow
-        # for multiple instantiations on MPI platform
+        """
+        Get database connection with lazy initialization.
+        
+        Database connection and table creation are deferred until first access
+        to support MPI platform with multiple process instantiation.
+        
+        Returns:
+            sqlite3.Connection: Active database connection
+        """
         if self._conn is None:
             self.connect()
             self.create_tables()
@@ -144,6 +208,16 @@ class Database:
         return self._conn
 
     def register_protein(self, name, uniprot=None):
+        """
+        Register a target protein in the database.
+        
+        Args:
+            name (str): Protein name identifier
+            uniprot (str, optional): UniProt accession number
+            
+        Returns:
+            int: Database protein ID (prot_id)
+        """
         conn = self.conn
         cursor = conn.execute(
             "SELECT"
@@ -175,6 +249,15 @@ class Database:
         return cursor.lastrowid
 
     def fetch_variants(self, prot_id):
+        """
+        Retrieve all variant names for a given protein.
+        
+        Args:
+            prot_id (int): Database protein ID
+            
+        Returns:
+            list: List of tuples containing variant names
+        """
         cursor = self.conn.execute(
             "SELECT"
             "    name "
@@ -187,6 +270,16 @@ class Database:
         return cursor.fetchall()
 
     def variant_exists(self, prot_id, mutations):
+        """
+        Check if a variant already exists for a protein.
+        
+        Args:
+            prot_id (int): Database protein ID
+            mutations (str): Variant name/mutation string
+            
+        Returns:
+            bool: True if variant exists, False otherwise
+        """
         cursor = self.conn.execute(
             "SELECT EXISTS ("
             "    SELECT"
@@ -203,6 +296,21 @@ class Database:
         return bool(cursor.fetchone()[0])
 
     def register_variant(self, prot_id, name, sequence, directory, wildtype, pdb_file=None, pdb_code=None):
+        """
+        Register a protein variant in the database.
+        
+        Args:
+            prot_id (int): Database protein ID
+            name (str): Variant name/mutation identifier
+            sequence (str): Protein sequence
+            directory (str): Working directory path
+            wildtype (bool): Whether this is the wildtype sequence
+            pdb_file (str, optional): PDB template file path
+            pdb_code (str, optional): PDB accession code
+            
+        Returns:
+            int: Database variant ID (variant_id)
+        """
         conn = self.conn
         cursor = conn.execute(
             "INSERT INTO"
@@ -223,6 +331,15 @@ class Database:
         return cursor.lastrowid
 
     def remove_variant(self, variant_name):
+        """
+        Remove a variant and all associated data from the database.
+        
+        Args:
+            variant_name (str): Name of variant to remove
+            
+        Returns:
+            int: Last row ID from delete operation
+        """
         conn = self.conn
         cursor = conn.execute(
             "DELETE FROM"
@@ -236,6 +353,19 @@ class Database:
         return cursor.lastrowid
 
     def register_model(self, variant_id, method, scores, pdb_file, rejected):
+        """
+        Register a 3D structural model (from ModellerBuilder).
+        
+        Args:
+            variant_id (int): Database variant ID
+            method (str): Modeling method (e.g., "modeller")
+            scores (str): JSON string of quality scores (DOPE, VoroMQA)
+            pdb_file (str): Path to model PDB file
+            rejected (bool): Whether model failed quality assessment
+            
+        Returns:
+            int: Database model ID (model_id)
+        """
         conn = self.conn
         cursor = conn.execute(
             "INSERT INTO"
@@ -254,6 +384,17 @@ class Database:
         return cursor.lastrowid
 
     def register_evaluation(self, variant_id, model_id, evaluation):
+        """
+        Register a molecular docking evaluation.
+        
+        Args:
+            variant_id (int): Database variant ID
+            model_id (int): Database model ID
+            evaluation: Evaluation data container with docking results
+            
+        Returns:
+            int: Database evaluation ID (eval_id)
+        """
         conn = self.conn
         cursor = conn.execute(
             "INSERT INTO"
@@ -272,6 +413,16 @@ class Database:
         return cursor.lastrowid
 
     def register_poses(self, eval_id, energy):
+        """
+        Register docking poses with their binding energies.
+        
+        Args:
+            eval_id (int): Database evaluation ID
+            energy (list): List of binding energies for each pose
+            
+        Returns:
+            list: List of database pose IDs (pose_id)
+        """
         pose_id = []
         conn = self.conn
         cursor = conn.cursor()
@@ -292,6 +443,15 @@ class Database:
         return pose_id
 
     def fetch_metric_id(self, name):
+        """
+        Retrieve database ID for a measurement metric.
+        
+        Args:
+            name (str): Metric name
+            
+        Returns:
+            int or None: Database metric ID if found, None otherwise
+        """
         cursor = self.conn.execute(
             "SELECT"
             "    metric_id "
@@ -308,6 +468,18 @@ class Database:
         return None
 
     def register_metric(self, name, identifier):
+        """
+        Register a measurement metric type (e.g., distance calculations).
+        
+        Uses caching to avoid repeated database queries for the same metric.
+        
+        Args:
+            name (str): Metric name
+            identifier (str): Metric identifier string (includes selection strings)
+            
+        Returns:
+            int: Database metric ID (metric_id)
+        """
         if name not in self._metric_ids:
             conn = self.conn
             metric_id = self.fetch_metric_id(name)
@@ -330,6 +502,17 @@ class Database:
         return self._metric_ids[name]
 
     def register_measurements(self, eval_id, pose_id_list, measurements):
+        """
+        Register measurement values for docking poses.
+        
+        Stores distance calculations and other geometric measurements computed
+        by the Measurer component for pose filtering and analysis.
+        
+        Args:
+            eval_id (int): Database evaluation ID
+            pose_id_list (list): List of database pose IDs
+            measurements (list): List of measurement data containers
+        """
         cursor = self.conn.cursor()
         for measurer in measurements:
             metric_id = self.register_metric(measurer.name, measurer.identifier)

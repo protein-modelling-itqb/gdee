@@ -1,0 +1,382 @@
+Usage Instructions
+==================
+
+This section provides practical examples demonstrating how to run the Gene Discovery and Enzyme Engineering features of the GDEE Platform.
+
+Overview
+--------
+
+The GDEE platform provides a unified interface through the :class:`~gdee.engineer.ProteinEngineering` class for executing comprehensive protein engineering workflows. The platform supports:
+
+- Multiple variant generation strategies (MSA-based, mutation-based)
+- 3D structure modeling with MODELLER
+- Model quality assessment using VoroMQA and Normalized DOPE
+- Molecular docking with AutoDock Vina/Vinardo
+- Distance measurements for pose filtering
+- Both single-machine and distributed MPI execution
+- SQLite database storage for all results
+
+
+Gene Discovery
+--------------
+
+Gene discovery workflows focus on exploring sequence variants from FASTA files to identify naturally occurring variants that may catalyze specific biochemical reactions.
+
+.. code-block:: python
+
+    from gdee import ProteinEngineering
+
+    # Initialize the GDEE platform with protein name and database file
+    # This creates the main workflow orchestrator and database connection
+    eng = ProteinEngineering("target-protein", "db-filename")
+    
+    # Set the template PDB structure for homology modeling
+    # This structure serves as the basis for generating 3D models of variants
+    eng.pdb = "protein.pdb"
+
+    # Configure paths to external programs required for the workflow
+    # MGLTools: Used for converting PDB to PDBQT format for docking
+    eng.programs["mgltools"] = "/path/to/MGLTools-1.5.6"
+    # AutoDock Vina: Molecular docking engine for protein-ligand interactions
+    eng.programs["vina"] = "/path/to/autodock_vina/vina"
+    # VoroMQA: Model quality assessment using Voronoi tessellation
+    eng.programs["voromqa"] = "/path/to/voronota/voronota-voromqa"
+
+    # Configure file archiving and output management
+    # Archive successful jobs to compressed files for storage efficiency
+    eng.io["output"] = "files"
+    # Naming format for archived files (5-digit zero-padded numbers)
+    eng.io["output_format"] = ".{:05d}"
+    # Archive every 50 completed jobs to balance I/O and storage
+    eng.io["output_freq"] = 50
+
+    # Configure distributed execution platform
+    # Use MPI for parallel processing across multiple compute nodes
+    eng.platform["name"] = "mpi"
+    # Number of CPU cores to use on each MPI node for local parallelism
+    eng.platform["local_cpu"] = 16
+
+    # Configure 3D structure modeling parameters
+    # Number of models to be used in the docking step
+    eng.model["num_models"] = 5
+    # Optimize residues within 8 Å of mutation sites (local optimization)
+    eng.model["optimize_radius"] = 8
+    # Use moderate optimization level (0=fast, 1=normal, 2=slow)
+    eng.model["optimize_level"] = 1
+
+    # Configure molecular docking parameters
+    # Use AutoDock Vina as the docking engine
+    eng.evaluator["name"] = "vina"
+    # High exhaustiveness for thorough conformational search (default: 8)
+    eng.evaluator["exhaustiveness"] = 200
+    # Center coordinates of the docking search box (x, y, z in Angstroms)
+    eng.evaluator["box_center"] = [32, 20, 39.5]
+    # Dimensions of the search box (width, height, depth in Angstroms)
+    eng.evaluator["box_size"] = [14, 11, 16]
+
+    # Add a ligand for docking
+    # Returns a Ligand object for further configuration
+    lig = eng.add_ligand("ligand-name", "ligand-file.pdbqt")
+    
+    # Define distance measurements between protein and ligand atoms
+    # These measurements will be computed for each docking pose
+    # Measure distance from residue 292 CA atom to ligand CL1 atom
+    lig.add_measurement("metric-1", "distance", "resid 292 and name CA", "name CL1")
+    # Measure distance from residue 160 N atom to ligand O2 atom
+    lig.add_measurement("metric-2", "distance", "resid 160 and name N", "name O2")
+    # Measure distance from residue 220 NH2 group to ligand C12 atom
+    lig.add_measurement("metric-3", "distance", "resid 220 and name NH2", "name C12")
+
+    # Configure variant generation from FASTA file
+    print("Running MSA")
+    eng.variant["name"] = "msa"
+    # FASTA file containing sequences to be evaluated
+    eng.variant["msa"] = "sequences_20_identity.fasta"
+    
+    # Execute the complete gene discovery workflow
+    # This will: generate variants → model structures → assess quality → dock ligands → measure distances
+    eng.run()
+
+    print("Done!")
+
+
+
+Enzyme Engineering
+------------------
+
+Enzyme engineering workflows focus on mutation-based optimization to improve specific biochemical reactions.
+
+.. code-block:: python
+
+    from gdee import ProteinEngineering
+
+    # Initialize platform for enzyme engineering study
+    eng = ProteinEngineering("target-protein", "db-filename")
+    # Template structure of the enzyme to be engineered
+    eng.pdb = "protein.pdb"
+
+    # Configure external program paths (same as gene discovery)
+    eng.programs["mgltools"] = "/path/to/MGLTools-1.5.6"
+    eng.programs["vina"] = "/path/to/autodock_vina/vina"
+    eng.programs["voromqa"] = "/path/to/voronota/voronota-voromqa"
+
+    # Configure archiving for larger datasets typical in enzyme engineering
+    eng.io["output"] = "files"
+    eng.io["output_format"] = ".{:05d}"
+    # Archive less frequently due to larger number of variants
+    eng.io["output_freq"] = 2000
+
+    # Use distributed execution for systematic mutagenesis screens
+    eng.platform["name"] = "mpi"
+    eng.platform["local_cpu"] = 16
+
+    # Define structural constraints for mutagenesis
+    # Fixed positions that will not be optimized by MODELLER (critical for structure/function)
+    # Format: "ChainID:ResidueNumber" separated by spaces
+    eng.variant["fixed"] = "A:237 A:206 A:160 A:87 A:161"
+    # Positions selected for mutagenesis (target sites for optimization)
+    eng.variant["selection"] = "A:185 A:159 A:88 A:93 A:92 A:208"
+
+    # Define amino acid groups for systematic exclusion rules
+    # Special amino acids that might disrupt structure
+    SPECIAL = "CGP"  # Cysteine (disulfide), Glycine (flexible), Proline (rigid)
+    # Charged amino acids
+    POSITIVE = "RHK"  # Arginine, Histidine, Lysine
+    NEGATIVE = "DE"   # Aspartate, Glutamate
+    # Polar amino acids
+    POLAR = "QNST"    # Glutamine, Asparagine, Serine, Threonine
+    # Hydrophobic amino acids
+    NON_POLAR = "AVILMFYW"  # Ala, Val, Ile, Leu, Met, Phe, Trp, Tyr
+
+    # Global exclusion rule: don't use these amino acids at any position
+    eng.variant["excluded_all"] = NEGATIVE + POSITIVE + SPECIAL
+    
+    # Position-specific exclusion rules for fine-tuned mutagenesis
+    # Each position has customized restrictions based on structural role
+    eng.variant["excluded"] = {
+        "A:159": POLAR,      # Exclude polar residues at position 159
+        "A:88": "FWY",       # Exclude bulky aromatics at position 88
+        "A:93": "FWYM",      # Exclude aromatics and Met at position 93
+        "A:92": NON_POLAR,   # Exclude hydrophobic residues at position 92
+        "A:208": "FWYM",     # Exclude bulky residues at position 208
+    }
+
+    # Number of models to be used in the docking step
+    eng.model["num_models"] = 5
+    # Optimize residues within 8 Å of mutation sites (local optimization)
+    eng.model["optimize_radius"] = 8
+    # Use moderate optimization level (0=fast, 1=normal, 2=slow)
+    eng.model["optimize_level"] = 1
+
+    # Configure molecular docking parameters
+    # Name of the docking engine to use
+    eng.evaluator["name"] = "vina"
+    # Exhaustiveness value used in the docking calculations
+    eng.evaluator["exhaustiveness"] = 200
+    # Center coordinates of the docking search box (x, y, z in Angstroms)
+    eng.evaluator["box_center"] = [32, 20, 39.5]
+    # Dimensions of the search box (width, height, depth in Angstroms)
+    eng.evaluator["box_size"] = [14, 11, 16]
+
+    # Add a ligand for docking
+    # Returns a Ligand object for further configuration
+    lig = eng.add_ligand("ligand-name", "ligand-file.pdbqt")
+    
+    # Define critical distance measurements for pose filtering
+    # Distance from catalytic residue N87 to substrate O10 (catalytic interaction)
+    dimer.add_measurement("metric1", "distance", "chainID A and resid 87 and name N", "name O10")
+    # Distance from binding residue N161 to substrate O10 (substrate positioning)
+    dimer.add_measurement("metric2", "distance", "chainID A and resid 161 and name N", "name O10")
+    # Distance from S160 side chain to substrate C3 (cofactor interaction)
+    dimer.add_measurement("metric3", "distance", "chainID A and resid 160 and name OG", "name C3")
+    dimer.add_measurement("metric4", "distance", "chainID A and resid 185 and name CA", "name C2")
+
+For enzyme engineering, two variant generation strategies are available:
+
+1. Exhaustive combinatorial mutagenesis: Screen all possible double amino acid substitutions in selected residues
+
+.. code-block:: python
+
+    # Exhaustive combinatorial mutagenesis
+    # Generate all possible combinations at selected positions
+    print("Running all 2 by 2")
+    eng.variant["name"] = "exhaustive"
+    # Maximum number of simultaneous mutations per variant (In this example will generate single and double mutamts)
+    eng.variant["combinations"] = 2
+    
+    # Execute pipeline
+    eng.run()
+
+    print("Done!")
+
+2. Sampling-based mutagenesis: Sample the mutation space using conservative substitutions and scoring matrices
+
+.. code-block:: python
+
+    # Sampling approach using substitution matrices (e.g., BLOSUM62) to prioritize conservative changes
+    print("Sampling 2 by 2")
+    eng.variant["name"] = "mutation"
+    # Use conservative amino acid substitutions based on evolutionary data
+    eng.variant["conservative"] = True
+    # Maximum number of variants to generate (prevents excessive library sizes)
+    eng.variant["max_iterations"] = 50000
+    # Maximum number of simultaneous mutations per variant (In this example will generate single and double mutamts)
+    eng.variant["combinations"] = 2
+    
+    # Execute pipeline
+    eng.run()
+
+    print("Done!")
+
+
+Filtering Docking Poses and Ranking Variants
+---------------------------------------------
+
+After workflow completion, use the analysis module to identify the most promising variants based on multiple criteria:
+
+.. code-block:: python
+
+    from gdee.database import Database
+    from gdee.analysis.filters import Metric
+
+    # Connect to the results database generated by the platform
+    db = Database("db-filename.sqlite3")
+    
+    # Create metric objects for each measurement defined in the workflow
+    # These correspond to the distance measurements added to ligands above
+    metric1 = Metric("metric1", db) 
+    metric2 = Metric("metric2", db)  
+    metric3 = Metric("metric3", db) 
+    metric4 = Metric("metric4", db)  
+
+    # Define filtering rules based on biochemical criteria
+    # Close catalytic contact for example (< 3.5 Å indicates proper positioning)
+    rule1 = metric1 < 3.5
+    # Close binding interaction for example (< 3.5 Å indicates strong binding)
+    rule2 = metric2 < 3.5
+    # Cofactor should be closer to substrate than pocket residue (selectivity)
+    rule3 = metric4 > metric3
+
+    # Combine rules using boolean logic
+    # Variants must have either good catalytic OR binding contacts AND proper selectivity
+    rule4 = (rule1 | rule2) & rule3
+
+    # Create ranking based on binding energy (lower is better)
+    # Variants passing the filtering rules are ranked by docking energy
+    rank = rule4.rank()
+    # Export all passing variants to SQLite database for further analysis
+    rank.export_sqlite("rank.sqlite3", "All_Variants")
+
+    # Filter by mutation count for systematic analysis
+    # Single mutants are often easier to validate experimentally
+    single = rank.by_num_mutations(1)
+    single.export_sqlite("rank.sqlite3", "Single")
+    # Export top 15 single mutants to CSV for easy inspection
+    single.export_csv("rank_single.csv", 15)
+
+    # Double mutants may show synergistic effects
+    double = rank.by_num_mutations(2)
+    double.export_sqlite("rank.sqlite3", "Double")
+    # Export top 15 double mutants for experimental follow-up
+    double.export_csv("rank_double.csv", 15)
+
+
+
+Useful Scripts
+--------------
+
+Script to run BLAST search against Swissprot database and save results in XML format:
+
+.. code-block:: python
+
+    from Bio import SeqIO
+    from Bio.Blast import NCBIWWW
+
+    # Configuration parameters for BLAST search
+    FASTA = "target-protein.fasta"        # Input protein sequence file
+    DATABASE = "swissprot"                # database
+    E_VALUE = 10                          # E-value threshold
+    MAX_HITS = 10000                      # Maximum number of sequences to retrieve
+    MIN_IDENTITY = 10                     # Minimum percent identity threshold
+    OUTPUT = "blast_results.xml"          # Output file in XML format for parsing
+
+    # Read the query protein sequence from FASTA file
+    query = SeqIO.read(FASTA, format="fasta")
+    
+    # Perform online BLAST search
+    result = NCBIWWW.qblast("blastp", DATABASE, query.seq, expect=E_VALUE,
+                            hitlist_size=MAX_HITS, perc_ident=MIN_IDENTITY)
+    
+    # Save BLAST results in XML format for subsequent parsing
+    # XML format preserves all alignment details and statistics
+    with open(OUTPUT, "w") as fd:
+        fd.write(result.read())
+
+
+Script to filter BLAST results based on coverage and identity, and save sequences in FASTA format:
+
+.. code-block:: python
+
+    from Bio import SeqIO
+    from Bio.Seq import Seq
+    from Bio.SeqRecord import SeqRecord
+    from Bio.Blast import NCBIXML
+
+    # Configuration parameters for filtering BLAST results
+    OUTPUT = "sequences_single_20_identity.fasta"  # Output FASTA file with filtered sequences
+    BLAST_XML = "blast_results.xml"               # Input XML file from BLAST search
+    MIN_COVERAGE = 0.8                            # Minimum query coverage
+    MIN_IDENTITY = 0.2                            # Minimum sequence identity
+
+    # Parse BLAST results from XML file
+    with open("blast_results.xml") as fd:
+        blast = NCBIXML.read(fd)
+
+    # Initialize lists to collect filtered sequences and statistics
+    expects = []      # E-values for statistical analysis
+    sequences = []    # Filtered sequences for output
+
+    # Iterate through all database matches (alignments) from BLAST
+    for aln in blast.alignments:
+        # Get the best HSP (High-scoring Segment Pair) for each alignment
+        # HSPs represent local alignments between query and database sequence
+        hsp = aln.hsps[0]
+        
+        # Calculate query coverage as fraction of query sequence aligned
+        # Higher coverage indicates more complete homology
+        coverage = (hsp.query_end - hsp.query_start + 1) / blast.query_length
+        
+        # Calculate sequence identity as fraction of identical residues
+        # Higher identity indicates closer evolutionary relationship
+        identity = hsp.identities / hsp.align_length
+
+        # Skip identical sequences (identity = 1.0) to avoid self-matches
+        # These don't provide new information for diversity analysis
+        if identity == 1:
+            continue
+
+        # Apply coverage and identity filters to select high-quality homologs
+        # These thresholds ensure sequences are sufficiently similar and complete
+        if coverage >= MIN_COVERAGE and identity >= MIN_IDENTITY:
+            # Extract aligned subject sequence and remove gap characters
+            # Gaps (-) are alignment artifacts and should be removed
+            seq = Seq(hsp.sbjct).replace("-", "")
+            
+            # Create sequence record with database accession as identifier
+            # Empty description and annotation fields for simplicity
+            record = SeqRecord(seq, aln.accession, "", "")
+            sequences.append(record)
+            
+            # Store E-value for statistical summary
+            expects.append(hsp.expect)
+
+    # Print summary statistics about filtering results
+    # Helps assess the quality and diversity of the filtered dataset
+    print("Filtered {} sequences from {}".format(len(sequences), len(blast.alignments)))
+    print("Expect values. Max: {}. Min: {}".format(max(expects), min(expects)))
+    
+    # Write filtered sequences to FASTA file
+    SeqIO.write(sequences, OUTPUT, "fasta")
+
+
+The resulting FASTA file is ready for use in the GDEE platform for gene discovery workflows.

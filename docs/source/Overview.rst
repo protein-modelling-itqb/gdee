@@ -1,0 +1,220 @@
+Overview
+========
+
+.. figure:: _static/images/cover2.png
+   :alt: GDEE Platform Banner
+   :width: 800px
+   :align: center
+
+What is GDEE?
+-------------
+
+**Gene Discovery and Enzyme Engineering (GDEE)** is a comprehensive Python package that provides the functionality necessary to run the Gene Discovery and Enzyme Engineering Platform developed under the project ShikiFactory 100 (European Union's Horizon 2020 research and innovation programme under grant agreement number 814408).
+
+GDEE integrates multiple computational approaches for protein engineering, enabling researchers to design, model, and evaluate protein variants through automated workflows.
+
+How do I install GDEE?
+----------------------
+
+GDEE requires several external software dependencies and Python packages. Installation involves setting up both the computational tools and the Python environment.
+
+**Prerequisites**
+
+Before installing GDEE, you need to install the following external software:
+
+- **MODELLER**: Required for homology modeling (academic license needed)
+- **AutoDock Vina**: For molecular docking calculations
+- **MGLTools**: For structure preparation and PDBQT file generation
+- **VoroMQA**: Optional, for model quality assessment using Voronoi analysis
+
+**Python Package Installation**
+
+GDEE can be installed directly from the source:
+
+.. code-block:: bash
+
+   cd gdee/package
+   pip install .
+
+**Dependencies**
+
+GDEE automatically installs the following Python dependencies:
+
+- numpy (≥1.14) - Numerical computations
+- mdanalysis (≥0.20) - Molecular structure analysis
+- mpi4py (≥3.0) - Parallel computing support
+- path.py (≥13.0) - Enhanced path operations
+- biopython (≥1.75) - Biological sequence handling
+
+For detailed installation instructions, see the :doc:`Installation` guide.
+
+How can I use GDEE?
+-------------------
+
+GDEE provides a high-level Python interface through the `ProteinEngineering` class. Here's a basic workflow example:
+
+**Basic Usage Example**
+
+.. code-block:: python
+
+   from gdee import ProteinEngineering
+
+   # Initialize the protein engineering platform
+   engineer = ProteinEngineering("my_protein", "results.db")
+   
+   # Set the template PDB structure
+   engineer.pdb = "template.pdb"
+   
+   # Configure variant generation (mutation-based approach)
+   engineer.variant = {
+       "name": "mutation",
+       "matrix": "blosum62",
+       "selection": "A:100 A:150 A:200",  # Residues to mutate
+       "max_iterations": 100,
+       "conservative": True
+   }
+   
+   # Configure modeling parameters
+   engineer.model = {
+       "name": "modeller",
+       "num_models": 5,
+       "optimize_level": 1
+   }
+   
+   # Add ligand for docking
+   ligand = engineer.add_ligand("substrate", "ligand.pdbqt")
+   ligand.add_measurement("cofactor-ligand", "distance", 
+                         "chainId A and resid 195 and name N4", "name C1")
+   
+   # Configure docking parameters
+   engineer.evaluator = {
+       "name": "vina",
+       "box_center": [10.0, 15.0, 20.0],
+       "box_size": [20.0, 20.0, 20.0],
+       "exhaustiveness": 32
+   }
+   
+   # Run the engineering campaign
+   engineer.run()
+
+**Key Configuration Options**
+
+- **Variant strategies**: Choose between "mutation", "msa", or "exhaustive" approaches
+- **Selection syntax**: Specify residues using MDAnalysis selection strings
+- **Quality thresholds**: Set DOPE and VoroMQA cutoffs for model filtering
+- **Parallel execution**: Configure MPI settings for distributed computing
+- **Output management**: Control file organization and compression
+
+For comprehensive examples and advanced usage, see the :doc:`Usage` guide.
+
+How does GDEE work?
+-------------------
+
+GDEE implements a modular pipeline architecture that processes protein variants through multiple computational stages. The workflow is designed to be both automated and highly configurable.
+
+**Pipeline Architecture**
+
+The GDEE pipeline consists of the following sequential steps:
+
+1. **Variant Generation** → 2. **Structure Modeling** → 3. **Quality Assessment** → 4. **Molecular Docking** → 5. **Distance Measurements** → 6. **Data Storage**
+
+.. figure:: _static/images/Platform_architecture.png
+   :alt: GDEE Workflow Diagram
+   :width: 800px
+   :align: center
+   
+   High-level diagram illustrating the architecture and data flow of the platform. The Core functions as the central orchestrator coordinating and scheduling task execution across specialized modules in a linear pipeline workflow – Variant, Modeling, Evaluator, Measurement, and Analysis – each dedicated to specific tasks on protein variants. The Variant module generates amino acid sequence variants using different strategies; the Modeling module predicts 3D structures and assesses their quality; the Evaluator module performs docking and binding affinity calculations; the Measurement module calculates distances between selected protein and ligand atoms to assist in filtering; and the Analysis module applies filters and ranks variants accordingly. Data flows between processing modules are represented by bold arrows, while narrow arrows indicate the Core orchestration and management of operations. All intermediate and final results are centralized in the Database module, providing efficient data storage and retrieval for downstream analysis.  
+
+**Detailed Workflow**
+
+**Step 1: Variant Generation**
+   - Generates protein sequence variants based on the selected strategy (MSA (Gene Discovery), mutation matrix, or exhaustive)
+
+**Step 2: Structure Modeling**
+   - Uses MODELLER to create 3D structural models for each sequence variant
+   - Generates multiple models per variant to account for conformational uncertainty
+   - Performs local optimization focused on mutated regions to minimize computational cost
+
+**Step 3: Quality Assessment**
+   - Evaluates each model using Normalized DOPE scores from MODELLER
+   - Optionally applies VoroMQA for additional quality validation
+   - Filters out low-quality models based on user-defined thresholds
+
+**Step 4: Molecular Docking**
+   - Prepares protein models in PDBQT format using MGLTools
+   - Performs molecular docking using AutoDock Vina or Vinardo scoring
+   - Generates multiple binding poses per protein-ligand complex
+
+**Step 5: Distance Measurements**
+   - Calculates user-defined distance measurements between protein and ligand atoms
+   - Stores distance measurements for each pose
+
+**Step 6: Data Storage**
+   - Saves all results to a SQLite database with hierarchical organization
+   - Archives output files (PDB models, docking poses) in compressed format
+   - Maintains data integrity through transactional database operations
+
+
+**Key Features**
+
+**Protein Variant Generation**
+    GDEE supports multiple strategies for generating protein variants:
+    
+    - **MSA-based variants**: Generate variants based on FASTA file (Can result from a BLAST search - Gene Discovery)
+    - **Matrix-based mutations**: Use substitution matrices (BLOSUM62 or custom) for guided mutations
+    - **Exhaustive combinatorial mutations**: Systematically explore all possible combinations
+    - **Conservative vs. non-conservative mutations**: Control mutation bias based on amino acid properties
+
+**3D Structure Modeling**
+    Integration with MODELLER for homology modeling:
+    
+    - **Automated alignment generation**: Creates target-template alignments for modeling
+    - **Multiple model generation**: Produces multiple structural models per variant
+    - **Optimization control**: Configurable optimization levels (0 - fast/1 - normal/2 - slow)
+    - **Local refinement**: Focuses optimization on mutated regions with customizable radius
+
+**Model Quality Assessment**
+    Comprehensive evaluation of generated structural models:
+    
+    - **VoroMQA scoring**: Global quality assessment using Voronoi diagram analysis
+    - **Normalized DOPE**: MODELLER's Discrete Optimized Protein Energy for model validation
+    - **Automated filtering**: Reject low-quality models based on configurable thresholds
+
+**Molecular Docking and Evaluation**
+    High-throughput molecular docking capabilities:
+    
+    - **AutoDock Vina integration**: Standard AutoDock Vina docking protocol
+    - **Vinardo scoring**: Alternative scoring function 
+    - **Multiple pose generation**: Generate and evaluate multiple binding poses
+
+**Distance-based Measurements**
+    Filter of docking poses for relevant catalytic orientations:
+    
+    - **Euclidean distance calculations**: Measure distances between protein and ligand atoms
+    - **Custom selection support**: User-defined atom selections for measurements
+    - **Per-pose analysis**: Individual measurement for each docking pose
+    - **Automated data collection**: Systematic storage of all measurements
+
+**Distributed Computing Support**
+    Scalable execution for large-scale:
+    
+    - **MPI parallelization**: Distribute computations across multiple nodes
+    - **Local execution**: Single-threaded mode for smaller studies and testing
+    - **Job management**: Automated workflow orchestration and error handling
+    - **Progress tracking**: Monitor execution status and handle interruptions
+
+**Persistent Data Storage**
+    Robust database management:
+    
+    - **SQLite backend**: Lightweight, self-contained database storage
+    - **Result archiving**: Automated compression and storage of output files
+    - **Data integrity**: Transaction-based operations with rollback capabilities
+
+
+**Supported File Formats**
+
+- **Input**: PDB files for template structures (protein), PDBQT files for ligands
+- **Output**: PDB files for models, PDB files for docking poses
+- **Database**: SQLite format for persistent storage
+
+
