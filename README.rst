@@ -38,6 +38,9 @@ Please report bugs and feature requests through the `Issues page`_.
 Benchmark
 =========
 
+License
+=======
+
 .. |cc-by-nc-sa-shield| image:: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg
    :target: http://creativecommons.org/licenses/by-nc-sa/4.0/
    :alt: CC BY-NC-SA 4.0
