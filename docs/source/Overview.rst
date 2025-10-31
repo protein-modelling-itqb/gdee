@@ -6,6 +6,8 @@ Overview
    :width: 800px
    :align: center
 
+|
+
 What is GDEE?
 -------------
 
@@ -24,6 +26,7 @@ Before installing GDEE, you need to install the following external software:
 
 - **MODELLER**: Required for homology modeling (academic license needed)
 - **AutoDock Vina**: For molecular docking calculations
+- **Smina**: Alternative docking tool with Vinardo scoring
 - **MGLTools**: For structure preparation and PDBQT file generation
 - **VoroMQA**: Optional, for model quality assessment using Voronoi analysis
 
@@ -83,6 +86,7 @@ GDEE provides a high-level Python interface through the `ProteinEngineering` cla
    
    # Add ligand for docking
    ligand = engineer.add_ligand("substrate", "ligand.pdbqt")
+   # Add distance measurement between cofactor and ligand using MDAnalysis selection syntax
    ligand.add_measurement("cofactor-ligand", "distance", 
                          "chainId A and resid 195 and name N4", "name C1")
    
@@ -128,7 +132,12 @@ The GDEE pipeline consists of the following sequential steps:
 **Detailed Workflow**
 
 **Step 1: Variant Generation**
-   - Generates protein sequence variants based on the selected strategy (MSA (Gene Discovery), mutation matrix, or exhaustive)
+    GDEE supports multiple strategies for generating protein variants:
+    
+    - **MSA-based variants**: Generate variants based on FASTA file (Can result from a BLAST search - Gene Discovery)
+    - **Matrix-based mutations**: Use substitution matrices (BLOSUM62 or custom) for guided mutations
+    - **Exhaustive combinatorial mutations**: Systematically explore all possible combinations
+    - **Conservative vs. non-conservative mutations**: Control mutation bias based on amino acid properties
 
 **Step 2: Structure Modeling**
    - Uses MODELLER to create 3D structural models for each sequence variant
@@ -153,62 +162,6 @@ The GDEE pipeline consists of the following sequential steps:
    - Saves all results to a SQLite database with hierarchical organization
    - Archives output files (PDB models, docking poses) in compressed format
    - Maintains data integrity through transactional database operations
-
-
-**Key Features**
-
-**Protein Variant Generation**
-    GDEE supports multiple strategies for generating protein variants:
-    
-    - **MSA-based variants**: Generate variants based on FASTA file (Can result from a BLAST search - Gene Discovery)
-    - **Matrix-based mutations**: Use substitution matrices (BLOSUM62 or custom) for guided mutations
-    - **Exhaustive combinatorial mutations**: Systematically explore all possible combinations
-    - **Conservative vs. non-conservative mutations**: Control mutation bias based on amino acid properties
-
-**3D Structure Modeling**
-    Integration with MODELLER for homology modeling:
-    
-    - **Automated alignment generation**: Creates target-template alignments for modeling
-    - **Multiple model generation**: Produces multiple structural models per variant
-    - **Optimization control**: Configurable optimization levels (0 - fast/1 - normal/2 - slow)
-    - **Local refinement**: Focuses optimization on mutated regions with customizable radius
-
-**Model Quality Assessment**
-    Comprehensive evaluation of generated structural models:
-    
-    - **VoroMQA scoring**: Global quality assessment using Voronoi diagram analysis
-    - **Normalized DOPE**: MODELLER's Discrete Optimized Protein Energy for model validation
-    - **Automated filtering**: Reject low-quality models based on configurable thresholds
-
-**Molecular Docking and Evaluation**
-    High-throughput molecular docking capabilities:
-    
-    - **AutoDock Vina integration**: Standard AutoDock Vina docking protocol
-    - **Vinardo scoring**: Alternative scoring function 
-    - **Multiple pose generation**: Generate and evaluate multiple binding poses
-
-**Distance-based Measurements**
-    Filter of docking poses for relevant catalytic orientations:
-    
-    - **Euclidean distance calculations**: Measure distances between protein and ligand atoms
-    - **Custom selection support**: User-defined atom selections for measurements
-    - **Per-pose analysis**: Individual measurement for each docking pose
-    - **Automated data collection**: Systematic storage of all measurements
-
-**Distributed Computing Support**
-    Scalable execution for large-scale:
-    
-    - **MPI parallelization**: Distribute computations across multiple nodes
-    - **Local execution**: Single-threaded mode for smaller studies and testing
-    - **Job management**: Automated workflow orchestration and error handling
-    - **Progress tracking**: Monitor execution status and handle interruptions
-
-**Persistent Data Storage**
-    Robust database management:
-    
-    - **SQLite backend**: Lightweight, self-contained database storage
-    - **Result archiving**: Automated compression and storage of output files
-    - **Data integrity**: Transaction-based operations with rollback capabilities
 
 
 **Supported File Formats**

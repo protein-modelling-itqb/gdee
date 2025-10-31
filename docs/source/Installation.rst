@@ -46,148 +46,75 @@ Core Installation
 Required External Programs
 --------------------------
 
-The GDEE platform requires several external programs for structure modeling and molecular docking.
+The GDEE platform requires several external programs. Please follow the official installation documentation for each tool to ensure you have the most up-to-date installation procedures.
 
 MODELLER Installation
 ~~~~~~~~~~~~~~~~~~~~~
 
 MODELLER is required for 3D structure modeling of protein variants.
 
-1. **Register and Download**
-   
-   - Visit https://salilab.org/modeller/
-   - Register for academic license
-   - Download MODELLER for your platform
+**Installation:** Please follow the official MODELLER installation guide at https://salilab.org/modeller/download_installation.html
 
-2. **Install MODELLER**
+**Requirements:**
+- Academic license registration required
+- Python bindings must be installed in your GDEE virtual environment
 
-.. code-block:: bash
-
-    # Ubuntu/Debian
-    sudo apt-get install modeller
-
-    # Or from downloaded package
-    sudo dpkg -i modeller_*.deb
-
-3. **Configure License**
-
-.. code-block:: bash
-
-    # Edit MODELLER configuration
-    sudo nano /usr/lib/modeller*/modlib/modeller/config.py
-    
-    # Add your license key
-    license = 'YOUR_LICENSE_KEY'
-
-4. **Install Python Bindings**
-
-.. code-block:: bash
-
-    # In your GDEE virtual environment
-    pip install modeller
 
 MGLTools Installation
 ~~~~~~~~~~~~~~~~~~~~~
 
 MGLTools is required for converting PDB files to PDBQT format for docking.
 
-1. **Download MGLTools**
+**Installation:** Please follow the official MGLTools installation guide at https://ccsb.scripps.edu/mgltools/downloads/ 
 
-.. code-block:: bash
-
-    # Download MGLTools 1.5.6
-    wget http://mgltools.scripps.edu/downloads/downloads/tars/releases/REL1.5.6/mgltools_x86_64Linux2_1.5.6.tar.gz
-    
-    # Extract
-    tar -xzf mgltools_x86_64Linux2_1.5.6.tar.gz
-    
-    # Install
-    cd mgltools_x86_64Linux2_1.5.6
-    ./install.sh
-
-2. **Set Installation Path**
+**Configuration in GDEE:**
 
 .. code-block:: python
 
-    # In your GDEE script
-    eng.programs["mgltools"] = "/path/to/mgltools_x86_64Linux2_1.5.6"
+    # In your GDEE script, specify the MGLTools installation path
+    eng.programs["mgltools"] = "/path/to/mgltools_installation"
 
 AutoDock Vina Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 AutoDock Vina is required for molecular docking calculations.
 
-1. **Install from Package Manager**
+**Installation:** Please follow the official AutoDock Vina installation guide at https://github.com/ccsb-scripps/AutoDock-Vina
 
-.. code-block:: bash
-
-    # Ubuntu/Debian
-    sudo apt-get install autodock-vina
-
-
-2. **Or Compile from Source**
-
-.. code-block:: bash
-
-    # Download and compile
-    wget https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.0/vina_1.2.0_linux_x86_64
-    chmod +x vina_1.2.0_linux_x86_64
-    sudo mv vina_1.2.0_linux_x86_64 /usr/local/bin/vina
-
-3. **Configure Path**
+**Configuration in GDEE:**
 
 .. code-block:: python
 
-    # In your GDEE script
-    eng.programs["vina"] = "/usr/local/bin/vina"
+    # In your GDEE script, specify the Vina executable path
+    eng.programs["vina"] = "/path/to/vina"
 
 Vinardo Installation (Optional)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Vinardo provides improved docking accuracy compared to standard Vina.
+Vinardo is available as a scoring function in the Smina program.
 
-1. **Download Vinardo**
+**Installation:** Please follow the official Smina installation guide at https://sourceforge.net/projects/smina/
 
-.. code-block:: bash
-
-    # Download from official source
-    wget https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.0/vinardo_1.2.0_linux_x86_64
-    chmod +x vinardo_1.2.0_linux_x86_64
-    sudo mv vinardo_1.2.0_linux_x86_64 /usr/local/bin/vinardo
-
-2. **Configure Path**
+**Configuration in GDEE:**
 
 .. code-block:: python
 
-    # In your GDEE script
-    eng.programs["vinardo"] = "/usr/local/bin/vinardo"
+    # In your GDEE script, specify the Smina executable path
+    eng.programs["vinardo"] = "/path/to/smina"
 
-VoroMQA Installation
-~~~~~~~~~~~~~~~~~~~~
+VoroMQA Installation (Optional)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 VoroMQA is used for model quality assessment using Voronoi tessellation.
 
-1. **Install Voronota Package**
+**Installation:** Please follow the official Voronota installation guide at https://github.com/kliment-olechnovic/voronota
 
-.. code-block:: bash
-
-    # Download Voronota
-    wget https://github.com/kliment-olechnovic/voronota/releases/download/v1.25.3049/voronota_1.25.3049.tar.gz
-    tar -xzf voronota_1.25.3049.tar.gz
-    cd voronota_1.25.3049
-    
-    # Compile
-    make
-    
-    # Install
-    sudo cp voronota-voromqa /usr/local/bin/
-
-2. **Configure Path**
+**Configuration in GDEE:**
 
 .. code-block:: python
 
-    # In your GDEE script
-    eng.programs["voromqa"] = "/usr/local/bin/voronota-voromqa"
+    # In your GDEE script, specify the VoroMQA executable path
+    eng.programs["voromqa"] = "/path/to/voronota-voromqa"
 
 
 Next Steps
@@ -195,7 +122,6 @@ Next Steps
 
 After successful installation:
 
-1. Review the :doc:`usage_instructions` for workflow examples
-2. Check the :doc:`configuration_reference` for detailed parameter descriptions
-3. See the :doc:`troubleshooting` guide for common issues
-4. Explore the :doc:`api_reference` for advanced usage
+1. Review the :doc:`Usage` for workflow examples
+2. Ensure all external programs are properly configured in your GDEE scripts
+3. Test your installation with a simple workflow to verify all dependencies work correctly

@@ -8,7 +8,7 @@ Overview
 
 The GDEE platform provides a unified interface through the :class:`~gdee.engineer.ProteinEngineering` class for executing comprehensive protein engineering workflows. The platform supports:
 
-- Multiple variant generation strategies (MSA-based, mutation-based)
+- Multiple variant generation strategies (from sequence-based gene discovery to mutation-based enzyme engineering)
 - 3D structure modeling with MODELLER
 - Model quality assessment using VoroMQA and Normalized DOPE
 - Molecular docking with AutoDock Vina/Vinardo
@@ -17,8 +17,219 @@ The GDEE platform provides a unified interface through the :class:`~gdee.enginee
 - SQLite database storage for all results
 
 
+The following sections illustrate how to configure and run typical workflows for gene discovery and enzyme engineering.
+
+
+Configuration Parameters Reference
+----------------------------------
+
+This section provides a comprehensive reference for all configuration parameters available in the GDEE platform through the [`ProteinEngineering`](package/gdee/engineer.py) class.
+
+Platform Configuration
+~~~~~~~~~~~~~~~~~~~~~~
+
+Control the execution environment and computational resources:
+
+.. code-block:: python
+
+    # Platform execution settings
+    eng.platform["name"] = "simple"     # Execution mode: "simple" or "mpi"
+    eng.platform["local_cpu"] = 1       # Number of CPU cores per MPI process
+
+**Available Options:**
+
+- **name**: 
+  - ``"simple"``: Single-threaded execution on local machine
+  - ``"mpi"``: Distributed execution using MPI for parallel processing
+- **local_cpu**: Integer specifying CPU cores for local parallelism within each MPI process
+
+File Management Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Configure output file organization and compression:
+
+.. code-block:: python
+
+    # File archiving and output management
+    eng.io["output"] = "files"                    # Base directory for output files
+    eng.io["output_format"] = ".{:06d}"          # Archive naming format
+    eng.io["output_freq"] = 1000                 # Jobs per archive file
+
+**Parameters:**
+
+- **output**: String specifying the base directory name for storing output files
+- **output_format**: Format string for archive file naming (supports Python string formatting)
+- **output_freq**: Integer defining how many completed jobs to include per archive file
+
+External Program Paths
+~~~~~~~~~~~~~~~~~~~~~~
+
+Specify paths to required external software:
+
+.. code-block:: python
+
+    # External program configuration
+    eng.programs["mgltools"] = "/path/to/MGLTools-1.5.6"           # MGLTools installation
+    eng.programs["vina"] = "/path/to/vina"                         # AutoDock Vina executable
+    eng.programs["vinardo"] = "/path/to/smina"                     # Smina with Vinardo scoring (optional)
+    eng.programs["voromqa"] = "/path/to/voronota-voromqa"          # VoroMQA executable
+
+**Required Programs:**
+
+- **mgltools**: Path to MGLTools installation directory (required for PDBQT conversion)
+- **vina**: Path to AutoDock Vina executable (required for molecular docking)
+- **vinardo**: Path to Smina executable with Vinardo scoring (optional alternative scorer)
+- **voromqa**: Path to VoroMQA executable (optional for advanced model quality assessment)
+
+Variant Generation Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Control how protein variants are generated:
+
+.. code-block:: python
+
+    # Variant generation settings
+    eng.variant["name"] = "mutation"                    # Generation strategy
+    eng.variant["selection"] = "A:100 A:150 A:200"     # Residues to mutate
+    eng.variant["fixed"] = "A:50 A:75"                 # Fixed residues during optimization
+    eng.variant["excluded_all"] = "CGP"                # Globally excluded amino acids
+    eng.variant["excluded"] = {"A:100": "FWYM"}        # Position-specific exclusions
+    eng.variant["conservative"] = True                  # Use conservative mutations
+    eng.variant["max_iterations"] = 1000               # Maximum variants to generate
+    eng.variant["combinations"] = 2                    # Maximum simultaneous mutations
+    eng.variant["matrix"] = "blosum62"                 # Substitution matrix
+    eng.variant["msa"] = "sequences.fasta"             # Multiple sequence alignment file
+
+**Strategy Options:**
+
+- **name**: 
+  - ``"mutation"``: Matrix-based mutagenesis using substitution matrices
+  - ``"exhaustive"``: Systematic combinatorial mutagenesis
+  - ``"msa"``: Sequence variants from FASTA files
+
+**Selection Parameters:**
+
+- **selection**: Space-separated list of residues to mutate (format: "ChainID:ResidueNumber")
+- **fixed**: Space-separated list of residues to keep fixed during MODELLER optimization (format: "ChainID:ResidueNumber")
+- **excluded_all**: String of amino acid single-letter codes to exclude globally
+- **excluded**: Dictionary mapping residue positions to excluded amino acids
+
+**Mutation Control:**
+
+- **conservative**: Boolean controlling mutation bias (True = conservative, False = non-conservative)
+- **max_iterations**: Maximum number of variants to generate
+- **combinations**: Maximum number of simultaneous mutations per variant
+- **matrix**: Substitution matrix name ("blosum62" or custom matrix specification)
+- **msa**: Path to FASTA file containing sequences for FASTA-based variant generation
+
+Structure Modeling Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Configure 3D structure modeling with MODELLER:
+
+.. code-block:: python
+
+    # MODELLER configuration
+    eng.model["name"] = "modeller"             # Modeling method
+    eng.model["num_models"] = 5                # Number of models per variant
+    eng.model["optimize_radius"] = 8           # Optimization radius in Angstroms
+    eng.model["optimize_level"] = 1            # Optimization thoroughness
+
+**Parameters:**
+
+- **name**: Modeling method (currently only "modeller" is supported)
+- **num_models**: Number of 3D models to generate per sequence variant
+- **optimize_radius**: Distance in Angstroms around mutations to optimize (0 = just mutated residues)
+- **optimize_level**: 
+  - ``0``: Fast optimization (very_fast schedule, fast MD)
+  - ``1``: Normal optimization (normal schedule, slow MD)
+  - ``2``: Thorough optimization (slow schedule, very_slow MD)
+
+Model Quality Assessment Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Configure quality filtering for generated models:
+
+.. code-block:: python
+
+    # Model quality thresholds
+    eng.model_quality["norm_dope"] = -1.0      # Normalized DOPE score threshold
+    eng.model_quality["voromqa"] = 0.4         # VoroMQA score threshold
+
+**Quality Metrics:**
+
+- **norm_dope**: Normalized DOPE score threshold (models with scores higher than this value are rejected)
+- **voromqa**: VoroMQA score threshold (models with scores below this value are rejected, requires VoroMQA installation)
+
+Molecular Docking Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Configure protein-ligand docking parameters:
+
+.. code-block:: python
+
+    # Docking configuration
+    eng.evaluator["name"] = "vina"                         # Docking engine
+    eng.evaluator["exhaustiveness"] = 32                   # Search thoroughness
+    eng.evaluator["box_center"] = [10.0, 15.0, 20.0]       # Search box center (x, y, z)
+    eng.evaluator["box_size"] = [20.0, 20.0, 20.0]         # Search box dimensions
+
+**Docking Parameters:**
+
+- **name**: 
+  - ``"vina"``: Standard AutoDock Vina scoring
+  - ``"vinardo"``: Vinardo scoring function (using Smina)
+- **exhaustiveness**: Search thoroughness (higher values = more thorough but slower)
+- **box_center**: List of three floats defining the center coordinates of the docking search box
+- **box_size**: List of three floats defining the dimensions of the search box in Angstroms
+
+Ligand and Measurement Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Configure ligands and distance measurements:
+
+.. code-block:: python
+
+    # Add ligands and define measurements
+    ligand = eng.add_ligand("substrate", "ligand.pdbqt")
+    
+    # Distance measurements between protein and ligand atoms
+    ligand.add_measurement("catalytic_distance", "distance", 
+                          "chainID A and resid 87 and name N", "name O10")
+
+**Ligand Methods:**
+
+- **add_ligand(name, filename)**: Add a ligand for docking
+  - ``name``: String identifier for the ligand
+  - ``filename``: Path to PDBQT file containing ligand structure
+
+**Measurement Methods:**
+
+- **add_measurement(name, metric, protein_selection, ligand_selection)**: Add distance measurement
+  - ``name``: Unique identifier for the measurement
+  - ``metric``: Currently only "distance" is supported
+  - ``protein_selection``: MDAnalysis selection string for protein atoms
+  - ``ligand_selection``: MDAnalysis selection string for ligand atoms
+
+Selection Syntax Reference
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+GDEE uses MDAnalysis selection syntax for specifying atoms. Common examples:
+
+.. code-block:: python
+
+    # Atom-based selections
+    "chainID A and resid 100 and name CA"     # Atom CA of residue 100 in chain A 
+    "name O10"                                # Atom O10 of the ligand
+
+For complete syntax documentation, refer to the MDAnalysis selection documentation.
+
+
+Example Workflows
+-----------------
+
 Gene Discovery
---------------
+~~~~~~~~~~~~~~
 
 Gene discovery workflows focus on exploring sequence variants from FASTA files to identify naturally occurring variants that may catalyze specific biochemical reactions.
 
@@ -102,7 +313,7 @@ Gene discovery workflows focus on exploring sequence variants from FASTA files t
 
 
 Enzyme Engineering
-------------------
+~~~~~~~~~~~~~~~~~~
 
 Enzyme engineering workflows focus on mutation-based optimization to improve specific biochemical reactions.
 
@@ -230,7 +441,7 @@ For enzyme engineering, two variant generation strategies are available:
 
 
 Filtering Docking Poses and Ranking Variants
----------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 After workflow completion, use the analysis module to identify the most promising variants based on multiple criteria:
 
@@ -380,3 +591,5 @@ Script to filter BLAST results based on coverage and identity, and save sequence
 
 
 The resulting FASTA file is ready for use in the GDEE platform for gene discovery workflows.
+
+

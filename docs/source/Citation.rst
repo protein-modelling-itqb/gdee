@@ -43,7 +43,7 @@ GDEE relies on several key computational tools and libraries. If you use GDEE ex
 **MDAnalysis**
    Michaud-Agrawal, N., Denning, E. J., Woolf, T. B. and Beckstein, O. (2011). MDAnalysis: A Toolkit for the Analysis of Molecular Dynamics Simulations. *Journal of Computational Chemistry*, 32, 2319-2327. doi: 10.1002/jcc.21787
 
-**VoroMQA** (if used)
+**VoroMQA** 
    Olechnovič, K. and Venclovas, Č. (2017). VoroMQA: Assessment of protein structure quality using interatomic contact areas. *Proteins: Structure, Function, and Bioinformatics*, 85(6), 1131-1145. doi: 10.1002/prot.25278
 
 **NumPy**
