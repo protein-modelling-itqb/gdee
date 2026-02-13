@@ -22,6 +22,7 @@ class ModellerBuilder:
         self.env = mdl.environ()
         self.env.io.hetatm = True
         self.env.io.water = True
+        self.env.io.hydrogen = True
         self.env.edat.dynamic_lennard = True
         self.env.schedule_scale[mdl.physical.lennard_jones] = 1.0
         mdl.log.level(0, 0, 0, 0, 0)
