@@ -171,11 +171,9 @@ Quick Links
 - `Installation Guide <https://gdee.readthedocs.io/en/latest/installation.html>`_
 - `Usage Tutorials <https://gdee.readthedocs.io/en/latest/usage.html>`_
 - `Configuration Reference <https://gdee.readthedocs.io/en/latest/configuration.html>`_
-- `API Reference <https://gdee.readthedocs.io/en/latest/api.html>`_
 
 📄 **Scientific Publication**: https://doi.org/10.1101/2025.09.09.675117
 
-📁 **Examples**: Check the `examples/ <examples/>`_ directory for complete workflow demonstrations
 
 Citing GDEE
 ===========
