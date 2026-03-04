@@ -1,5 +1,4 @@
-"""
-"""
+"""Database filtering and ranking for result analysis."""
 
 
 import csv
@@ -9,11 +8,23 @@ from ..database import Database
 
 
 def _generate_table_name():
+    """Generate unique temporary table name.
+    
+    Returns:
+        str: Unique table name
+    """
     return "R" + str(uuid.uuid4()).replace("-", "")
 
 
 class Metric:
+    """Represents a measurement metric in the database."""
     def __init__(self, name, database):
+        """Initialize metric reference.
+        
+        Args:
+            name: Metric name
+            database: Database instance
+        """
         self._name = name
         self._database = database
         self._metric_id = database.fetch_metric_id(name)
@@ -76,11 +87,26 @@ class Metric:
 
 
 class Rule:
+    """Represents a filter rule for pose selection."""
     def __init__(self, table, database):
+        """Initialize filter rule.
+        
+        Args:
+            table: Temporary table name with pose_ids
+            database: Database instance
+        """
         self._table = table
         self._database = database
 
     def __and__(self, other):
+        """Combine rules with AND operation.
+        
+        Args:
+            other: Another Rule object
+            
+        Returns:
+            Rule: New rule with intersection
+        """
         table = _generate_table_name()
         self._database.conn.execute(
             "CREATE TEMP TABLE {} AS "
@@ -90,6 +116,14 @@ class Rule:
         return Rule(table, self._database)
 
     def __or__(self, other):
+        """Combine rules with OR operation.
+        
+        Args:
+            other: Another Rule object
+            
+        Returns:
+            Rule: New rule with union
+        """
         table = _generate_table_name()
         self._database.conn.execute(
             "CREATE TEMP TABLE {} AS "
@@ -101,6 +135,11 @@ class Rule:
         return Rule(table, self._database)
 
     def __invert__(self):
+        """Invert rule with NOT operation.
+        
+        Returns:
+            Rule: Inverted rule
+        """
         table = _generate_table_name()
         self._database.conn.execute(
             "CREATE TEMP TABLE {} AS "
@@ -110,6 +149,11 @@ class Rule:
         return Rule(table, self._database)
 
     def __bool__(self):
+        """Prevent boolean conversion.
+        
+        Raises:
+            TypeError: Rule cannot be converted to bool
+        """
         raise TypeError("Rule not convertible to bool. Use the bitwise operators ~ (not), & (and), | (or) for boolean expressions.")
 
     def rank(self, ascending=True):
@@ -117,12 +161,29 @@ class Rule:
 
 
 class Rank:
+    """Represents ranked results from database query."""
     def __init__(self, table, database):
+        """Initialize ranked results.
+        
+        Args:
+            table: Table name with ranked poses
+            database: Database instance
+        """
         self._table = table
         self._database = database
 
     @staticmethod
     def from_rule(poses_table, database, ascending):
+        """Create ranked results from a rule.
+        
+        Args:
+            poses_table: Table with selected pose_ids
+            database: Database instance
+            ascending: Sort ascending if True
+            
+        Returns:
+            Rank: Ranked results object
+        """
         order = "ASC" if ascending else "DESC"
         temp_table = _generate_table_name()
         table = _generate_table_name()
@@ -147,6 +208,14 @@ class Rank:
         return Rank(table, database)
 
     def by_num_mutations(self, num_mutations):
+        """Filter by number of mutations.
+        
+        Args:
+            num_mutations: Number of mutations to filter by
+            
+        Returns:
+            Rank: Filtered ranked results
+        """
         like = "%" + "|%" * (num_mutations - 1)
         not_like = "%" + "|%" * num_mutations
         table = _generate_table_name()
@@ -159,6 +228,11 @@ class Rank:
         return Rank(table, self._database)
 
     def by_wildtype(self):
+        """Filter to only wildtype variants.
+        
+        Returns:
+            Rank: Filtered ranked results
+        """
         table = _generate_table_name()
         self._database.conn.execute(
             "CREATE TEMP TABLE {} AS "
@@ -169,6 +243,12 @@ class Rank:
         return Rank(table, self._database)
 
     def export_csv(self, file_name, max_lines=100):
+        """Export results to CSV file.
+        
+        Args:
+            file_name: Output CSV file path
+            max_lines: Maximum number of rows to export
+        """
         with open(file_name, "w") as fd:
             writer = csv.writer(fd)
             writer.writerow(("rank", "energy", "name", "directory", "is_wildtype", "model_id", "variant_id", "eval_id", "pose_index", "docking_file"))
@@ -185,6 +265,15 @@ class Rank:
             writer.writerows(data)
 
     def export_sqlite(self, file_name, table_name):
+        """Export results to SQLite file.
+        
+        Args:
+            file_name: Output database file path
+            table_name: Table name in output database
+            
+        Returns:
+            Rank: Results in output database
+        """
         self._database.conn.executescript(
             "ATTACH DATABASE '{0}' AS exportdb; "
             "DROP TABLE IF EXISTS exportdb.{1}; "

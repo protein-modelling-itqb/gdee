@@ -1,5 +1,4 @@
-"""
-"""
+"""AutoDock Vina/Vinardo molecular docking implementation."""
 
 import os
 import numpy as np
@@ -15,6 +14,18 @@ warnings.filterwarnings("ignore", module=r"MDAnalysis.*")
 
 
 def external_command(arguments, name):
+    """Execute external command and check for errors.
+    
+    Args:
+        arguments: List of command arguments
+        name: Job name for error reporting
+        
+    Returns:
+        subprocess.CompletedProcess: Command result
+        
+    Raises:
+        RuntimeError: If command fails
+    """
     proc = subprocess.run(
         arguments,
         check=False,
@@ -27,7 +38,16 @@ def external_command(arguments, name):
 
 
 class BaseVina:
+    """Base class for Vina-based docking engines.
+    
+    Handles protein preparation, search box validation, and result processing.
+    """
     def __init__(self, parameters):
+        """Initialize Vina docking base.
+        
+        Args:
+            parameters: Docking configuration dictionary
+        """
         self.parameters = parameters
         self.name = ""
         self.program = ""
@@ -37,6 +57,14 @@ class BaseVina:
         self.atm_type = parameters['atm_type']
 
     def run(self, job_data):
+        """Execute docking for all models in job.
+        
+        Args:
+            job_data: Job data with models to dock
+            
+        Returns:
+            DataContainer: Job data with docking results
+        """
         job_dir = job_data.job_dir
         temp_dir = TemporaryDirectory(prefix="gdee_docking")
         temp_path = Path(temp_dir.name)
@@ -88,6 +116,12 @@ class BaseVina:
         return job_data
 
     def run_docking(self, job_data):
+        """Prepare receptor PDBQT from PDB.
+           Execute docking command.
+        
+        Args:
+            job_data: Job data 
+        """
         # Generate model's PDBQT
         command = [
             self.prepare_receptor,
@@ -125,6 +159,9 @@ class BaseVina:
 
 
     def atm_type_patch(self, pdbqt):
+        """
+        Patch PDBQT file to update atom types based on provided mapping.
+        """
         new_pdbqt = 'model_patched.pdbqt'
 
         with open(pdbqt, 'r') as f, open(new_pdbqt, 'w') as nf:
@@ -146,14 +183,33 @@ class BaseVina:
 
 
 class VinaDocking(BaseVina):
+    """AutoDock Vina docking implementation."""
     def __init__(self, parameters, *args, **kwargs):
+        """Initialize Vina docking.
+        
+        Args:
+            parameters: Docking configuration
+            *args: Additional positional arguments
+            **kwargs: Additional keyword arguments
+        """
         super().__init__(parameters, *args, **kwargs)
         self.name = "vina"
         self.program = parameters["vina"]
 
 
 class VinardoDocking(BaseVina):
+    """Vinardo docking implementation.
+    
+    Uses Vinardo scoring function via Smina.
+    """
     def __init__(self, parameters, *args, **kwargs):
+        """Initialize Vinardo docking.
+        
+        Args:
+            parameters: Docking configuration
+            *args: Additional positional arguments
+            **kwargs: Additional keyword arguments
+        """
         super().__init__(parameters, *args, **kwargs)
         self.name = "vinardo"
         self.program = parameters["vinardo"]

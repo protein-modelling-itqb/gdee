@@ -1,6 +1,4 @@
-"""
-"""
-
+"""Sampling mutation-based variant generation."""
 
 import itertools
 from .base_builder import BaseBuilder
@@ -9,7 +7,17 @@ from gdee.misc import DataContainer, get_valid_filename
 
 
 class MutationBuilder(BaseBuilder):
+    """Generates variants through sampling amino acid mutations.
+    
+    Uses substitution matrices for biologically reasonable mutations.
+    """
     def __init__(self, parameters, database):
+        """Initialize mutation-based variant builder.
+        
+        Args:
+            parameters: Configuration with mutation parameters
+            database: Database connection
+        """
         super().__init__(parameters, database)
         self.variant = None
         self.mut_sel = []
@@ -42,6 +50,11 @@ class MutationBuilder(BaseBuilder):
         return zip(wildtype, variant)
 
     def special_initialize(self):
+        """Set up mutation sampling and residue selection.
+        
+        Raises:
+            RuntimeError: If no residues selected for mutation
+        """
         self.variant = self.protein.copy()
 
         if not self.parameters["selection"]:
@@ -69,6 +82,11 @@ class MutationBuilder(BaseBuilder):
         self.fixed_index = [res.index for res in fixed_sel]
 
     def mutations(self):
+        """Generate mutation description and indices.
+        
+        Returns:
+            tuple: (mutation_string, tuple_of_indices)
+        """
         mutations = []
         mut_index = []
         for wt_res, mut_res in zip(self.wildtype_sel, self.variant_sel):
@@ -83,6 +101,11 @@ class MutationBuilder(BaseBuilder):
         return self.protein.name, tuple(res.index for res in self.wildtype_sel)
 
     def fetch_next_job(self):
+        """Generate next random mutation variant.
+        
+        Returns:
+            DataContainer: Job data with variant, or None if max iterations reached
+        """
         if self.iterations >= self.max_iter:
             return None
 
