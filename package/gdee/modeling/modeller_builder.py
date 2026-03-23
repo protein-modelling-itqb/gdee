@@ -17,7 +17,7 @@ class ModellerBuilder:
     """Generates 3D models using MODELLER."""
     def __init__(self, parameters):
         """Initialize MODELLER environment.
-        
+
         Args:
             parameters: Modeling configuration dictionary
         """
@@ -26,17 +26,16 @@ class ModellerBuilder:
         self.env = mdl.environ()
         self.env.io.hetatm = True
         self.env.io.water = True
-        self.env.io.hydrogen = True
         self.env.edat.dynamic_lennard = True
         self.env.schedule_scale[mdl.physical.lennard_jones] = 1.0
         mdl.log.level(0, 0, 0, 0, 0)
 
     def run(self, job_data):
         """Generate 3D models for variant.
-        
+
         Args:
             job_data: Job data with variant information
-            
+
         Returns:
             DataContainer: Job data with model results
         """
@@ -85,7 +84,7 @@ class ModellerBuilder:
 
     def write_alignment(self, job_data):
         """Write alignment file for MODELLER.
-        
+
         Args:
             job_data: Job data with variant sequence
         """
@@ -98,10 +97,10 @@ class ModellerBuilder:
 
     def build_models(self, job_data):
         """Build 3D models using MODELLER.
-        
+
         Args:
             job_data: Job data with variant information
-            
+
         Returns:
             list: List of model data dictionaries with scores
         """
@@ -158,7 +157,7 @@ class ModellerBuilder:
 
     def rename_models(self, structure, prot_seq):
         """Rename residues to match variant sequence.
-        
+
         Args:
             structure: MDAnalysis Universe with all models
             prot_seq: ProtSeq with target sequence
@@ -182,7 +181,7 @@ class MutationModel(automodel.automodel):
     """MODELLER automodel subclass for mutation-specific optimization."""
     def select_opt_residues(self, residues, excluded, coff):
         """Configure optimization residues.
-        
+
         Args:
             residues: Indices of residues to optimize
             excluded: Indices of residues to exclude from optimization
@@ -194,7 +193,7 @@ class MutationModel(automodel.automodel):
 
     def select_atoms(self):
         """Select atoms for optimization.
-        
+
         Returns:
             mdl.selection: Atom selection for optimization
         """

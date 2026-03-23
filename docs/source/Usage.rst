@@ -37,20 +37,20 @@ Control the execution environment and computational resources:
 
 **Available Options:**
 
-- **name**: 
+- **name**:
   - ``"simple"``: Single-threaded execution on local machine
   - ``"mpi"``: Distributed execution using MPI for parallel processing
 - **local_cpu**: Integer specifying CPU cores for local parallelism within each MPI process
 
 File Management Configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Configure output file organization and compression:
 
 .. code-block:: python
 
     # File archiving and output management
-    eng.io["output"] = "files"                    # Base directory for output files
+    eng.io["output"] = "files"                   # Base directory for output files
     eng.io["output_format"] = ".{:06d}"          # Archive naming format
     eng.io["output_freq"] = 1000                 # Jobs per archive file
 
@@ -81,19 +81,19 @@ Specify paths to required external software:
 - **voromqa**: Path to VoroMQA executable (optional for advanced model quality assessment)
 
 Variant Generation Configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Control how protein variants are generated:
 
 .. code-block:: python
 
     # Variant generation settings
-    eng.variant["name"] = "mutation"                    # Generation strategy
+    eng.variant["name"] = "mutation"                   # Generation strategy
     eng.variant["selection"] = "A:100 A:150 A:200"     # Residues to mutate
     eng.variant["fixed"] = "A:50 A:75"                 # Fixed residues during optimization
     eng.variant["excluded_all"] = "CGP"                # Globally excluded amino acids
     eng.variant["excluded"] = {"A:100": "FWYM"}        # Position-specific exclusions
-    eng.variant["conservative"] = True                  # Use conservative mutations
+    eng.variant["conservative"] = True                 # Use conservative mutations
     eng.variant["max_iterations"] = 1000               # Maximum variants to generate
     eng.variant["combinations"] = 2                    # Maximum simultaneous mutations
     eng.variant["matrix"] = "blosum62"                 # Substitution matrix
@@ -101,7 +101,7 @@ Control how protein variants are generated:
 
 **Strategy Options:**
 
-- **name**: 
+- **name**:
   - ``"mutation"``: Matrix-based mutagenesis using substitution matrices
   - ``"exhaustive"``: Systematic combinatorial mutagenesis
   - ``"msa"``: Sequence variants from FASTA files
@@ -122,7 +122,7 @@ Control how protein variants are generated:
 - **msa**: Path to FASTA file containing sequences for FASTA-based variant generation
 
 Structure Modeling Configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Configure 3D structure modeling with MODELLER:
 
@@ -139,13 +139,13 @@ Configure 3D structure modeling with MODELLER:
 - **name**: Modeling method (currently only "modeller" is supported)
 - **num_models**: Number of 3D models to generate per sequence variant
 - **optimize_radius**: Distance in Angstroms around mutations to optimize (0 = just mutated residues)
-- **optimize_level**: 
+- **optimize_level**:
   - ``0``: Fast optimization (very_fast schedule, fast MD)
   - ``1``: Normal optimization (normal schedule, slow MD)
   - ``2``: Thorough optimization (slow schedule, very_slow MD)
 
 Model Quality Assessment Configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Configure quality filtering for generated models:
 
@@ -161,7 +161,7 @@ Configure quality filtering for generated models:
 - **voromqa**: VoroMQA score threshold (models with scores below this value are rejected, requires VoroMQA installation)
 
 Molecular Docking Configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Configure protein-ligand docking parameters:
 
@@ -175,7 +175,7 @@ Configure protein-ligand docking parameters:
 
 **Docking Parameters:**
 
-- **name**: 
+- **name**:
   - ``"vina"``: Standard AutoDock Vina scoring
   - ``"vinardo"``: Vinardo scoring function (using Smina)
 - **exhaustiveness**: Search thoroughness (higher values = more thorough but slower)
@@ -183,7 +183,7 @@ Configure protein-ligand docking parameters:
 - **box_size**: List of three floats defining the dimensions of the search box in Angstroms
 
 Ligand and Measurement Configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Configure ligands and distance measurements:
 
@@ -191,9 +191,9 @@ Configure ligands and distance measurements:
 
     # Add ligands and define measurements
     ligand = eng.add_ligand("substrate", "ligand.pdbqt")
-    
+
     # Distance measurements between protein and ligand atoms
-    ligand.add_measurement("catalytic_distance", "distance", 
+    ligand.add_measurement("catalytic_distance", "distance",
                           "chainID A and resid 87 and name N", "name O10")
 
 **Ligand Methods:**
@@ -211,14 +211,14 @@ Configure ligands and distance measurements:
   - ``ligand_selection``: MDAnalysis selection string for ligand atoms
 
 Selection Syntax Reference
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 GDEE uses MDAnalysis selection syntax for specifying atoms. Common examples:
 
 .. code-block:: python
 
     # Atom-based selections
-    "chainID A and resid 100 and name CA"     # Atom CA of residue 100 in chain A 
+    "chainID A and resid 100 and name CA"     # Atom CA of residue 100 in chain A
     "name O10"                                # Atom O10 of the ligand
 
 For complete syntax documentation, refer to the MDAnalysis selection documentation.
@@ -239,7 +239,7 @@ Gene discovery workflows focus on exploring sequence variants from FASTA files t
     # Initialize the GDEE platform with protein name and database file
     # This creates the main workflow orchestrator and database connection
     eng = ProteinEngineering("target-protein", "db-filename")
-    
+
     # Set the template PDB structure for homology modeling
     # This structure serves as the basis for generating 3D models of variants
     eng.pdb = "protein.pdb"
@@ -287,7 +287,7 @@ Gene discovery workflows focus on exploring sequence variants from FASTA files t
     # Add a ligand for docking
     # Returns a Ligand object for further configuration
     lig = eng.add_ligand("ligand-name", "ligand-file.pdbqt")
-    
+
     # Define distance measurements between protein and ligand atoms
     # These measurements will be computed for each docking pose
     # Measure distance from residue 292 CA atom to ligand CL1 atom
@@ -302,7 +302,7 @@ Gene discovery workflows focus on exploring sequence variants from FASTA files t
     eng.variant["name"] = "msa"
     # FASTA file containing sequences to be evaluated
     eng.variant["msa"] = "sequences_20_identity.fasta"
-    
+
     # Execute the complete gene discovery workflow
     # This will: generate variants → model structures → assess quality → dock ligands → measure distances
     eng.run()
@@ -360,7 +360,7 @@ Enzyme engineering workflows focus on mutation-based optimization to improve spe
 
     # Global exclusion rule: don't use these amino acids at any position
     eng.variant["excluded_all"] = NEGATIVE + POSITIVE + SPECIAL
-    
+
     # Position-specific exclusion rules for fine-tuned mutagenesis
     # Each position has customized restrictions based on structural role
     eng.variant["excluded"] = {
@@ -391,7 +391,7 @@ Enzyme engineering workflows focus on mutation-based optimization to improve spe
     # Add a ligand for docking
     # Returns a Ligand object for further configuration
     lig = eng.add_ligand("ligand-name", "ligand-file.pdbqt")
-    
+
     # Define critical distance measurements for pose filtering
     # Distance from catalytic residue N87 to substrate O10 (catalytic interaction)
     lig.add_measurement("metric1", "distance", "chainID A and resid 87 and name N", "name O10")
@@ -413,7 +413,7 @@ For enzyme engineering, two variant generation strategies are available:
     eng.variant["name"] = "exhaustive"
     # Maximum number of simultaneous mutations per variant (In this example will generate single and double mutamts)
     eng.variant["combinations"] = 2
-    
+
     # Execute pipeline
     eng.run()
 
@@ -432,7 +432,7 @@ For enzyme engineering, two variant generation strategies are available:
     eng.variant["max_iterations"] = 50000
     # Maximum number of simultaneous mutations per variant (In this example will generate single and double mutamts)
     eng.variant["combinations"] = 2
-    
+
     # Execute pipeline
     eng.run()
 
@@ -451,13 +451,13 @@ After workflow completion, use the analysis module to identify the most promisin
 
     # Connect to the results database generated by the platform
     db = Database("db-filename.sqlite3")
-    
+
     # Create metric objects for each measurement defined in the workflow
     # These correspond to the distance measurements added to ligands above
-    metric1 = Metric("metric1", db) 
-    metric2 = Metric("metric2", db)  
-    metric3 = Metric("metric3", db) 
-    metric4 = Metric("metric4", db)  
+    metric1 = Metric("metric1", db)
+    metric2 = Metric("metric2", db)
+    metric3 = Metric("metric3", db)
+    metric4 = Metric("metric4", db)
 
     # Define filtering rules based on biochemical criteria
     # Close catalytic contact for example (< 3.5 Å indicates proper positioning)
@@ -494,15 +494,15 @@ After workflow completion, use the analysis module to identify the most promisin
 Rescoring with Machine Learning Scoring Function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-After completing initial docking and ranking workflows, you can rescore the candidates using a machine learning-based scoring function. 
+After completing initial docking and ranking workflows, you can rescore the candidates using a machine learning-based scoring function.
 
 .. note::
-   
+
    Machine learning scoring functions must be trained prior to use. The rescoring workflow requires pre-trained model files in pickle format:
-   
+
    - **RF-Score models**: Random Forest-based scoring functions (v1, v2, v3 variants)
    - **PLECnn model**: Deep learning model using Protein-Ligand Extended Connectivity interaction fingerprints
-   
+
 For training these models, refer to the ODDT package documentation.
 
 
@@ -513,23 +513,23 @@ For training these models, refer to the ODDT package documentation.
 
     # Load the ranked database from previous workflow filtering
     input_db = Ranked_Database("rank.sqlite3")
-    
+
     # Specify output database for rescored results
     # This will create a new database with all rescored poses
     output_db = "rank_rescored.sqlite3"
 
     # Initialize rescoring workflow
     rescoring = RescoreVariants(
-        input_db,                          # Input database with ranked variants
-        output_db,                         # Output database for rescored results
-        "AllVariants",                     # Table name containing variants to rescore
+        input_db,                                       # Input database with ranked variants
+        output_db,                                      # Output database for rescored results
+        "AllVariants",                                  # Table name containing variants to rescore
         [
-            "RFScore_v1_pdbbind2016.pickle",        # path to RF-Score v1 model
-            "RFScore_v2_pdbbind2016.pickle",        # path to RF-Score v2 model
-            "RFScore_v3_pdbbind2016.pickle",        # path to RF-Score v3 model
-            "PLECnn_p5_l1_pdbbind2016_s65536.pickle" # path to PLECnn deep learning model
+            "RFScore_v1_pdbbind2016.pickle",            # path to RF-Score v1 model
+            "RFScore_v2_pdbbind2016.pickle",            # path to RF-Score v2 model
+            "RFScore_v3_pdbbind2016.pickle",            # path to RF-Score v3 model
+            "PLECnn_p5_l1_pdbbind2016_s65536.pickle"    # path to PLECnn deep learning model
         ],
-        "files"                            # Directory containing structure files
+        "files"                                         # Directory containing structure files
     )
 
     # Configure distributed or simple execution for rescoring
@@ -564,11 +564,11 @@ Script to run BLAST search against Swissprot database and save results in XML fo
 
     # Read the query protein sequence from FASTA file
     query = SeqIO.read(FASTA, format="fasta")
-    
+
     # Perform online BLAST search
     result = NCBIWWW.qblast("blastp", DATABASE, query.seq, expect=E_VALUE,
                             hitlist_size=MAX_HITS, perc_ident=MIN_IDENTITY)
-    
+
     # Save BLAST results in XML format for subsequent parsing
     # XML format preserves all alignment details and statistics
     with open(OUTPUT, "w") as fd:
@@ -585,10 +585,10 @@ Script to filter BLAST results based on coverage and identity, and save sequence
     from Bio.Blast import NCBIXML
 
     # Configuration parameters for filtering BLAST results
-    OUTPUT = "sequences_single_20_identity.fasta"  # Output FASTA file with filtered sequences
-    BLAST_XML = "blast_results.xml"               # Input XML file from BLAST search
-    MIN_COVERAGE = 0.8                            # Minimum query coverage
-    MIN_IDENTITY = 0.2                            # Minimum sequence identity
+    OUTPUT = "sequences_single_20_identity.fasta"   # Output FASTA file with filtered sequences
+    BLAST_XML = "blast_results.xml"                 # Input XML file from BLAST search
+    MIN_COVERAGE = 0.8                              # Minimum query coverage
+    MIN_IDENTITY = 0.2                              # Minimum sequence identity
 
     # Parse BLAST results from XML file
     with open("blast_results.xml") as fd:
@@ -603,11 +603,11 @@ Script to filter BLAST results based on coverage and identity, and save sequence
         # Get the best HSP (High-scoring Segment Pair) for each alignment
         # HSPs represent local alignments between query and database sequence
         hsp = aln.hsps[0]
-        
+
         # Calculate query coverage as fraction of query sequence aligned
         # Higher coverage indicates more complete homology
         coverage = (hsp.query_end - hsp.query_start + 1) / blast.query_length
-        
+
         # Calculate sequence identity as fraction of identical residues
         # Higher identity indicates closer evolutionary relationship
         identity = hsp.identities / hsp.align_length
@@ -623,12 +623,12 @@ Script to filter BLAST results based on coverage and identity, and save sequence
             # Extract aligned subject sequence and remove gap characters
             # Gaps (-) are alignment artifacts and should be removed
             seq = Seq(hsp.sbjct).replace("-", "")
-            
+
             # Create sequence record with database accession as identifier
             # Empty description and annotation fields for simplicity
             record = SeqRecord(seq, aln.accession, "", "")
             sequences.append(record)
-            
+
             # Store E-value for statistical summary
             expects.append(hsp.expect)
 
@@ -636,11 +636,9 @@ Script to filter BLAST results based on coverage and identity, and save sequence
     # Helps assess the quality and diversity of the filtered dataset
     print("Filtered {} sequences from {}".format(len(sequences), len(blast.alignments)))
     print("Expect values. Max: {}. Min: {}".format(max(expects), min(expects)))
-    
+
     # Write filtered sequences to FASTA file
     SeqIO.write(sequences, OUTPUT, "fasta")
 
 
 The resulting FASTA file is ready for use in the GDEE platform for gene discovery workflows.
-
-

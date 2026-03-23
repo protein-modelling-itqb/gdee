@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath('../../package'))
 project = "GDEE"
 copyright = "2025, Caio S. Souza"
 author = "Caio S. Souza"
-release = "0.1.0"
+release = "1.0.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -28,9 +28,15 @@ extensions = [
     "sphinx.ext.intersphinx",
 ]
 
+# Avoid RTD failures on optional / non-trivial native deps during autodoc imports
+autodoc_mock_imports = [
+    "modeller",
+    "MDAnalysis",
+    "mpi4py",
+]
+
 templates_path = ["_templates"]
 exclude_patterns = []
-
 
 
 # -- Options for HTML output -------------------------------------------------

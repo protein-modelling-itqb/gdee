@@ -14,36 +14,36 @@ GDEE automates the complete computational pipeline for testing several protein v
 Features
 ========
 
-🧬 **Variant Generation**
-- **MSA-based variants**: Generate variants from FASTA sequences (BLAST results)  
+**Variant Generation**
+- **MSA-based variants**: Generate variants from FASTA sequences (BLAST results)
 - **Random mutations**: BLOSUM62-guided amino acid substitutions
-- **Exhaustive enumeration**: Systematic exploration of mutation combinations
+- **Exhaustive mutations**: Systematic exploration of mutation combinations
 - **Flexible selection**: Target specific residues with exclusion rules
 
-🏗️ **3D Structure Modeling**
+ **3D Structure Modeling**
 - **MODELLER integration**: Homology modeling with mutation-specific optimization
 - **Quality assessment**: VoroMQA and Normalized DOPE scoring
 - **Batch processing**: Multiple models per variant with automatic selection
 
-🎯 **Molecular Docking**
+ **Molecular Docking**
 - **AutoDock Vina/Vinardo**: High-throughput protein-ligand docking
 - **Multiple ligands**: Parallel evaluation of different compounds
 - **Pose analysis**: Energy ranking and geometric measurements
 
-📊 **Analysis & Storage**
+ **Analysis & Storage**
 - **SQLite database**: Comprehensive result storage with relationships
 - **Filtering**: SQL-based result analysis and ranking
 - **Export capabilities**: CSV and database export for further analysis
 - **Measurement System**: Distance calculations and geometric analysis
 
-⚡ **Scalable Execution**
+ **Scalable Execution**
 - **Single machine**: Simple sequential processing
 - **MPI support**: Distributed computing across clusters
 - **File archiving**: Automatic result compression and organization
 
-🔄 **Rescoring**
+ **Rescoring**
 - **Post-hoc Analysis**: Re-score existing docking results with trained metamodel
-- **Result Ranking**: Quickly identify top candidates using alternative scoring 
+- **Result Ranking**: Quickly identify top candidates using alternative scoring
 
 How to Install GDEE
 ===================
@@ -52,13 +52,12 @@ GDEE requires several external dependencies including MODELLER, AutoDock Vina, a
 
 **System Requirements**
 - Python 3.6+
-- Linux or macOS (Windows support limited)
-- Minimum 8 GB RAM, 16 GB recommended
+- Linux
 - MODELLER license (academic license available)
 
 For detailed installation instructions including external program setup, and platform-specific instructions, please see the complete **Installation Guide** in our documentation:
 
-📖 **Installation Documentation**: https://gdee.readthedocs.io/en/latest/installation.html
+ **Installation Documentation**: https://gdee.readthedocs.io/en/latest/installation.html
 
 How to Use GDEE
 ===============
@@ -73,41 +72,36 @@ GDEE provides a high-level Python interface for protein engineering workflows. H
 
     # Initialize workflow
     eng = ProteinEngineering("MyProtein", "results.db")
-    
+
     # Configure template structure
     eng.pdb = "template.pdb"
-    
-    # Set up variant generation (random mutations)
-    eng.variant = {
-        "name": "mutation",
-        "selection": "A:123 A:456 B:789",  # Target specific residues
-        "max_iterations": 100
-    }
-    
+
+    # Set up variant generation
+    eng.variant["name"] = "mutation"
+    eng.variant["selection"] = "A:123 A:456 B:789"  # Target specific residues
+    eng.variant["max_iterations"] = 100
+    eng.variant["combinations"] = 2
+
     # Configure 3D modeling
-    eng.model = {
-        "num_models": 5,
-        "optimize_level": 1
-    }
-    
+    eng.model["num_models"] = 5
+    eng.model["optimize_level"] = 1
+
     # Add ligand for docking
     ligand = eng.add_ligand("compound1", "ligand.pdbqt")
-    ligand.add_measurement("binding_distance", "distance", 
-                          "resid 123", "resname LIG")
-    
+
     # Set docking parameters
-    eng.evaluator = {
-        "name": "vina",
-        "box_center": [10.0, 15.0, 20.0],
-        "box_size": [20.0, 20.0, 20.0]
-    }
-    
+    eng.evaluator["name"] = "vina"
+    eng.evaluator["box_center"] = [10.0, 15.0, 20.0]
+    eng.evaluator["box_size"] = [20.0, 20.0, 20.0]
+
     # Run the complete workflow
     eng.run()
 
 **Rescoring Workflow Example**
 
-Re-evaluate existing docking results with trained metamodel::
+Re-evaluate existing docking results with trained metamodel:
+
+.. code-block:: python
 
     from gdee import RescoreVariants
 
@@ -122,17 +116,9 @@ Re-evaluate existing docking results with trained metamodel::
 
     rescorer.run()
 
-    # Analyze rescored results
-    from gdee.analysis.filters import Rule
-    
-    rule = Rule("energy < -8.5")
-    top_variants = rule.apply(rescorer.db, ascending=True)
-    top_variants.export_csv("top_rescored_variants.csv", max_lines=50)
-
-
 For comprehensive tutorials, advanced configuration options, workflow examples, and best practices, please refer to our complete **Usage Documentation**:
 
-📖 **Usage Guide**: https://gdee.readthedocs.io/en/latest/usage.html
+ **Usage Guide**: https://gdee.readthedocs.io/en/latest/usage.html
 
 
 How Does GDEE Work
@@ -144,7 +130,7 @@ GDEE implements a modular pipeline architecture that processes protein variants 
 
 The GDEE workflow consists of the following stages:
 
-1. **Variant Generation**: Creates protein variants using MSA, random mutations, or exhaustive enumeration
+1. **Variant Generation**: Creates protein variants using a FASTA file, random mutations, or exhaustive mutations
 2. **Structure Modeling**: Uses MODELLER for homology modeling with mutation-specific optimization
 3. **Quality Assessment**: Evaluates model quality using VoroMQA and Normalized DOPE scores
 4. **Molecular Docking**: Performs protein-ligand docking with AutoDock Vina/Vinardo
@@ -157,22 +143,22 @@ The rescoring feature enables efficient re-evaluation of existing docking poses:
 
 - Reads poses from the ranked database
 - Applies trained metamodel without structural changes
-- Stores new scores in the database for comparison
+- Stores new scores in a database for comparison
 
 For detailed information about the algorithmic approaches, computational methods, validation studies, and scientific applications of the GDEE platform, please refer to our research publication:
 
-📄 **Scientific Publication**: https://doi.org/10.1101/2025.09.09.675117
+ **Scientific Publication**: https://doi.org/10.1101/2025.09.09.675117
 
 Quick Links
 ===========
 
-📖 **Complete Documentation**: https://gdee.readthedocs.io/
+ **Complete Documentation**: https://gdee.readthedocs.io/
 
 - `Installation Guide <https://gdee.readthedocs.io/en/latest/installation.html>`_
 - `Usage Tutorials <https://gdee.readthedocs.io/en/latest/usage.html>`_
 - `Configuration Reference <https://gdee.readthedocs.io/en/latest/configuration.html>`_
 
-📄 **Scientific Publication**: https://doi.org/10.1101/2025.09.09.675117
+ **Scientific Publication**: https://doi.org/10.1101/2025.09.09.675117
 
 
 Citing GDEE
@@ -181,7 +167,7 @@ Citing GDEE
 If you use GDEE in your research, please cite:
 
 .. code-block:: bibtex
-    
+
     @article{souza2025gdee,
       title={GDEE: A Structure-Based Platform for Gene Discovery and Enzyme Engineering},
       author={Souza, Caio S and Correia, Jo{\~a}o PG and Rocha, Isabel and Lousa, Diana and Soares, Cl{\'a}udio M},

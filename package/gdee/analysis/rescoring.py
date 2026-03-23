@@ -18,11 +18,9 @@ class Rescore:
         self.output_db = Ranked_Database(output_db)
         self.output_db.table = self.table
 
-
     def get_variants(self, db):
         variant_list = list(db.fetch_ranked_variants(self.table))
         self.variant_it = iter(variant_list)
-
 
     def fetch_next_job(self):
         try:
@@ -50,9 +48,7 @@ class Rescore:
         job.model_id = model_id
         job.variant_id = variant_id
         job.eval_id = eval_id
-
         return job
-
 
     def run(self, job_data):
         docking_file = self.path / job_data.variant_dir / job_data.docking_file
@@ -64,10 +60,7 @@ class Rescore:
         results = self.run_metamodel(docking_file, model_file, pose, vina_score, name)
 
         job_data.results = results
-        
         return job_data
-
-
 
     def kd_to_energy(self, pkd):
         R = 8.314
@@ -78,8 +71,6 @@ class Rescore:
         kcal = kj / 4.18
         return kcal
 
-    # TODO make training automated -> Goal: The user dont have to choose models 
-    # TODO try to rescore only the correct pose
     def run_ml_functions(self, docking_file, model_file, pose, name):
         ml_scores = []
         for function in self.pickle_path:
@@ -106,13 +97,11 @@ class Rescore:
 
             try:
                 ml_scores.append(self.kd_to_energy(results[pose]))
-            
+
             except Exception as error:
                 print("Exception caught for variant {}:".format(name), traceback.print_exc(), error, sep="\n")
-        
         return ml_scores
 
-    # TODO implement Vinardo base model ?
     def run_metamodel(self, docking_file, model_file, pose, vina_score, name):
         ml_scores = self.run_ml_functions(docking_file, model_file, pose, name)
 
@@ -124,7 +113,6 @@ class Rescore:
         wvina = -0.04383675
 
         metamodel_score = w0 + (wrf1 * ml_scores[0]) + (wrf2 * ml_scores[1]) + (wrf3 * ml_scores[2]) + (wpnn * ml_scores[3]) + (wvina * vina_score)
-
         return metamodel_score
 
     def save_results(self, data):
@@ -134,10 +122,4 @@ class Rescore:
         self.output_db.register_variant(data.results, name, variant_dir, data.wt, data.model_id, data.variant_id, data.eval_id, data.pose, data.docking_file)
 
         print("Ended with variant '{}'".format(name))
-
         return True
-
-
-
-
-

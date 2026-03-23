@@ -6,7 +6,7 @@ with open("README.rst") as fd:
 
 setup(
     name = "gdee",
-    version = "0.1.0",
+    version = "1.0.0",
     description = "Python package necessary to run the Gene Disovery and Enzyme Engineering Platform",
     long_description = LONG_DESCRIPTION,
     long_description_content_type = "text/x-rst",

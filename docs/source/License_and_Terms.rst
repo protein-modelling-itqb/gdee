@@ -33,7 +33,7 @@ We appreciate acknowledgment of GDEE's contribution to your research and welcome
 Version History
 ---------------
 
-- **v0.1.0** (2025): Initial release with core functionality for protein engineering workflows
+- **v1.0.0** (2025): Initial release with core functionality for protein engineering workflows and rescoring with ML-based scoring function
 
 .. note::
    For the most up-to-date citation information and version details, please check the project repository and documentation.

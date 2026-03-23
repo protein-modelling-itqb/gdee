@@ -15,14 +15,14 @@ warnings.filterwarnings("ignore", module=r"MDAnalysis.*")
 
 def external_command(arguments, name):
     """Execute external command and check for errors.
-    
+
     Args:
         arguments: List of command arguments
         name: Job name for error reporting
-        
+
     Returns:
         subprocess.CompletedProcess: Command result
-        
+
     Raises:
         RuntimeError: If command fails
     """
@@ -39,12 +39,12 @@ def external_command(arguments, name):
 
 class BaseVina:
     """Base class for Vina-based docking engines.
-    
+
     Handles protein preparation, search box validation, and result processing.
     """
     def __init__(self, parameters):
         """Initialize Vina docking base.
-        
+
         Args:
             parameters: Docking configuration dictionary
         """
@@ -54,14 +54,14 @@ class BaseVina:
         self.ligand = parameters["ligand"]
         self.extra_arguments = []
         self.prepare_receptor = Path(parameters["mgltools"]) / "MGLToolsPckgs/AutoDockTools/Utilities24/prepare_receptor4.py"
-        self.atm_type = parameters['atm_type']
+        self.atom_type = parameters['atom_type']
 
     def run(self, job_data):
         """Execute docking for all models in job.
-        
+
         Args:
             job_data: Job data with models to dock
-            
+
         Returns:
             DataContainer: Job data with docking results
         """
@@ -118,9 +118,9 @@ class BaseVina:
     def run_docking(self, job_data):
         """Prepare receptor PDBQT from PDB.
            Execute docking command.
-        
+
         Args:
-            job_data: Job data 
+            job_data: Job data
         """
         # Generate model's PDBQT
         command = [
@@ -133,11 +133,11 @@ class BaseVina:
 
         external_command(command, job_data.variant.name)
 
-        # Run atom type patch 
-        if self.atm_type:
-            self.atm_type_patch('model.pdbqt')
+        # Run atom type patch
+        if self.atom_type:
+            self.atom_type_patch('model.pdbqt')
 
-        
+
         # Run docking
         box_center = "--center_x {:.2f} --center_y {:.2f} --center_z {:.2f}".format(*self.parameters["box_center"])
         box_size = "--size_x {:.2f} --size_y {:.2f} --size_z {:.2f}".format(*self.parameters["box_size"])
@@ -158,7 +158,7 @@ class BaseVina:
         external_command(command, job_data.variant.name)
 
 
-    def atm_type_patch(self, pdbqt):
+    def atom_type_patch(self, pdbqt):
         """
         Patch PDBQT file to update atom types based on provided mapping.
         """
@@ -169,12 +169,12 @@ class BaseVina:
                 write_line = True
                 if line.startswith('ATOM'):
                     # "{name}:{chain}:{id}"
-                    atm = "{}:{}:{}".format(line[12:16].strip(), line[21:22], line[22:26].strip())
-                    if atm in self.atm_type:
-                        if self.atm_type[atm] == "r":
+                    atom = "{}:{}:{}".format(line[12:16].strip(), line[21:22], line[22:26].strip())
+                    if atom in self.atom_type:
+                        if self.atom_type[atom] == "r":
                             write_line = False
                         else:
-                            line = line[:77] + "{}\n".format(self.atm_type[atm])
+                            line = line[:77] + "{}\n".format(self.atom_type[atom])
                 if write_line:
                     nf.write(line)
 
@@ -186,7 +186,7 @@ class VinaDocking(BaseVina):
     """AutoDock Vina docking implementation."""
     def __init__(self, parameters, *args, **kwargs):
         """Initialize Vina docking.
-        
+
         Args:
             parameters: Docking configuration
             *args: Additional positional arguments
@@ -199,12 +199,12 @@ class VinaDocking(BaseVina):
 
 class VinardoDocking(BaseVina):
     """Vinardo docking implementation.
-    
+
     Uses Vinardo scoring function via Smina.
     """
     def __init__(self, parameters, *args, **kwargs):
         """Initialize Vinardo docking.
-        
+
         Args:
             parameters: Docking configuration
             *args: Additional positional arguments

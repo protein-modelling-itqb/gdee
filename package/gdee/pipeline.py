@@ -33,7 +33,7 @@ class PipelineFactory:
 
     def make(self):
         """Create and configure pipeline instance.
-        
+
         Returns:
             Pipeline: Configured pipeline object
         """
@@ -93,7 +93,7 @@ class Pipeline:
     @property
     def variant_builder(self):
         """Get variant builder.
-        
+
         Returns:
             BaseBuilder: Variant generation strategy
         """
@@ -102,7 +102,7 @@ class Pipeline:
     @variant_builder.setter
     def variant_builder(self, obj):
         """Set variant builder.
-        
+
         Args:
             obj: Variant builder instance
         """
@@ -110,7 +110,7 @@ class Pipeline:
 
     def add_task(self, task):
         """Add processing task to pipeline.
-        
+
         Args:
             task: Task object with run() method
         """
@@ -118,10 +118,10 @@ class Pipeline:
 
     def next_job(self, size):
         """Get next batch of jobs.
-        
+
         Args:
             size: Number of jobs to retrieve
-            
+
         Returns:
             list: List of job data containers
         """
@@ -141,10 +141,10 @@ class Pipeline:
 
     def run_pipeline(self, job_data):
         """Execute all pipeline tasks on job.
-        
+
         Args:
             job_data: Job data to process
-            
+
         Returns:
             DataContainer: Processed job data
         """
@@ -167,7 +167,7 @@ class Pipeline:
 
     def save_results(self, data):
         """Save processing results.
-        
+
         Args:
             data: List of job results
         """
@@ -203,7 +203,7 @@ class RescoreFactory:
 
     def make(self):
         """Create rescoring pipeline.
-        
+
         Returns:
             RescorePipeline: Configured rescoring pipeline
         """
@@ -229,10 +229,10 @@ class RescorePipeline:
 
     def next_job(self, size):
         """Get next batch of rescoring jobs.
-        
+
         Args:
             size: Number of jobs to retrieve
-            
+
         Returns:
             list: List of job data containers
         """
@@ -247,15 +247,15 @@ class RescorePipeline:
                 break
 
             job_list.append(job)
-            
+
         return job_list
 
     def run_pipeline(self, job_data):
         """Execute rescoring on job.
-        
+
         Args:
             job_data: Job data with poses to rescore
-            
+
         Returns:
             DataContainer: Job data with rescored results
         """
@@ -274,7 +274,7 @@ class RescorePipeline:
 
     def save_results(self, data):
         """Save rescoring results.
-        
+
         Args:
             data: List of job results
         """
@@ -288,4 +288,3 @@ class RescorePipeline:
     def finalize(self):
         """Finalize pipeline execution."""
         self._terminate = True
-

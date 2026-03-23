@@ -12,16 +12,16 @@ __all__ = ["ProteinEngineering", "RescoreVariants"]
 
 class Ligand:
     """Represents a ligand for molecular docking.
-    
+
     Attributes:
         name: Ligand identifier
         filename: Path to PDBQT ligand file
         measurements: List of measurement specifications
     """
-    
+
     def __init__(self, name, filename):
         """Initialize a ligand.
-        
+
         Args:
             name: Unique ligand identifier
             filename: Path to PDBQT format file
@@ -32,7 +32,7 @@ class Ligand:
 
     def add_measurement(self, name, metric, protein_sel, ligand_sel):
         """Add a measurement to compute during docking.
-        
+
         Args:
             name: Measurement identifier
             metric: Metric type (e.g., "distance")
@@ -44,14 +44,14 @@ class Ligand:
 
 class ProteinEngineering:
     """Main interface for the GDEE protein engineering platform.
-    
+
     Orchestrates variant generation, 3D modeling, quality assessment,
     molecular docking, and result storage in SQLite database.
     """
-    
+
     def __init__(self, protein_name, database):
         """Initialize protein engineering workflow.
-        
+
         Args:
             protein_name: Name identifier for target protein
             database: Path to SQLite database file
@@ -94,38 +94,38 @@ class ProteinEngineering:
         self.evaluator = {
             "name": "vina",
             "exhaustiveness": 50,
-            "atm_type": None
+            "atom_type": None
         }
         self._pipeline = None
         self._terminate = False
         signal.signal(signal.SIGUSR1, self.catch_signals)
-    
+
     def add_ligand(self, name, filename):
         """Add a ligand for docking calculations.
-        
+
         Args:
             name: Unique ligand identifier
             filename: Path to PDBQT format ligand file
-            
+
         Returns:
             Ligand: Created ligand object for adding measurements
-            
+
         Raises:
             RuntimeError: If ligand name already exists
         """
         if name in self.ligands:
             raise RuntimeError("Ligand '{}' already exists".format(name))
-        
+
         ligand = Ligand(name, filename)
         self.ligands[name] = ligand
         return ligand
-    
+
     def run(self):
         """Execute the complete protein engineering workflow.
-        
+
         Runs variant generation, 3D modeling, quality assessment,
         docking, and saves results to database.
-        
+
         Raises:
             RuntimeError: If processing fails or is interrupted
         """
@@ -152,10 +152,10 @@ class ProteinEngineering:
 
         if self._terminate:
             raise RuntimeError("Processing interrupted by a system signal. Everything should be fine")
-    
+
     def catch_signals(self, signal, frame):
         """Handle termination signals gracefully.
-        
+
         Args:
             signal: Signal number
             frame: Stack frame
@@ -170,10 +170,10 @@ class ProteinEngineering:
 
 class RescoreVariants:
     """Re-evaluate existing docking results with trained metamodel."""
-    
+
     def __init__(self, in_db, out_db, table, functions, files_path):
         """Initialize rescoring workflow.
-        
+
         Args:
             in_db: Input database path with docking results
             out_db: Output database path for rescored results
@@ -191,12 +191,12 @@ class RescoreVariants:
         self._pipeline = None
         self._terminate = False
         signal.signal(signal.SIGUSR1, self.catch_signals)
-    
+
     def run(self):
         """Execute the rescoring workflow.
-        
+
         Re-scores poses from input database and saves to output database.
-        
+
         Raises:
             RuntimeError: If processing fails or is interrupted
         """
@@ -220,7 +220,7 @@ class RescoreVariants:
 
     def catch_signals(self, signal, frame):
         """Handle termination signals gracefully.
-        
+
         Args:
             signal: Signal number
             frame: Stack frame

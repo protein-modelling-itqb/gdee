@@ -7,10 +7,10 @@ import uuid
 
 def list_serialize(values):
     """Serialize list of values to pipe-delimited string.
-    
+
     Args:
         values: List of numeric or string values
-        
+
     Returns:
         str: Pipe-delimited serialized string
     """
@@ -18,17 +18,17 @@ def list_serialize(values):
         return "|".join(map(lambda x: "{:.4f}".format(x), values))
     except ValueError:
         pass
-    
+
     return "|".join(map(lambda x: "{}".format(x), values))
 
 
 class Database:
     """SQLite database interface for storing GDEE results.
-    
+
     Manages storage of variants, models, docking results, and measurements
     with proper relationships and constraints.
     """
-    
+
     def __init__(self, filename):
         if os.path.splitext(filename)[1] != ".sqlite3":
             filename += ".sqlite3"
@@ -44,7 +44,7 @@ class Database:
 
     def create_tables(self):
         """Create database schema with all required tables.
-        
+
         Creates tables for proteins, variants, models, evaluations,
         poses, metrics, and measurements with proper relationships.
         """
@@ -149,7 +149,7 @@ class Database:
                 "        value REAL NOT NULL"
                 "    );"
         )
-    
+
     @property
     def conn(self):
         # Database is connected only when needed to allow
@@ -162,11 +162,11 @@ class Database:
 
     def register_protein(self, name, uniprot=None):
         """Register a protein target.
-        
+
         Args:
             name: Protein name
             uniprot: UniProt accession code (optional)
-            
+
         Returns:
             int: Protein database ID
         """
@@ -202,10 +202,10 @@ class Database:
 
     def fetch_variants(self, prot_id):
         """Fetch all variants for a protein.
-        
+
         Args:
             prot_id: Protein database ID
-            
+
         Returns:
             list: List of (name, variant_id) tuples
         """
@@ -222,11 +222,11 @@ class Database:
 
     def variant_exists(self, prot_id, mutations):
         """Check if variant exists.
-        
+
         Args:
             prot_id: Protein database ID
             mutations: Variant name
-            
+
         Returns:
             bool: True if variant exists
         """
@@ -247,7 +247,7 @@ class Database:
 
     def register_variant(self, prot_id, name, sequence, directory, wildtype, pdb_file=None, pdb_code=None):
         """Register a new variant.
-        
+
         Args:
             prot_id: Parent protein database ID
             name: Variant name
@@ -256,7 +256,7 @@ class Database:
             wildtype: Whether variant is wildtype
             pdb_file: Template PDB file (optional)
             pdb_code: PDB code (optional)
-            
+
         Returns:
             int: Variant database ID
         """
@@ -294,14 +294,14 @@ class Database:
 
     def register_model(self, variant_id, method, scores, pdb_file, rejected):
         """Register a 3D model.
-        
+
         Args:
             variant_id: Parent variant database ID
             method: Modeling method name
             scores: JSON-formatted quality scores
             pdb_file: Path to model PDB file
             rejected: Whether model failed quality assessment
-            
+
         Returns:
             int: Model database ID
         """
@@ -324,12 +324,12 @@ class Database:
 
     def register_evaluation(self, variant_id, model_id, evaluation):
         """Register a docking evaluation.
-        
+
         Args:
             variant_id: Variant database ID
             model_id: Model database ID
             evaluation: Evaluation data container
-            
+
         Returns:
             int: Evaluation database ID
         """
@@ -352,11 +352,11 @@ class Database:
 
     def register_poses(self, eval_id, energy):
         """Register docking poses with energies.
-        
+
         Args:
             eval_id: Evaluation database ID
             energy: List of binding energies
-            
+
         Returns:
             list: List of pose database IDs
         """
@@ -397,11 +397,11 @@ class Database:
 
     def register_metric(self, name, identifier):
         """Register a measurement metric.
-        
+
         Args:
             name: Metric name
             identifier: Unique metric identifier
-            
+
         Returns:
             int: Metric database ID
         """
@@ -428,7 +428,7 @@ class Database:
 
     def register_measurements(self, eval_id, pose_id_list, measurements):
         """Register computed measurements.
-        
+
         Args:
             eval_id: Evaluation database ID
             pose_id_list: List of pose database IDs
@@ -466,7 +466,7 @@ class Ranked_Database:
         # Connect to database
         self._conn = sql.connect(self.filename, timeout=120)
         self._conn.execute("PRAGMA foreign_keys = ON")
-    
+
     @property
     def conn(self):
         # Database is connected only when needed to allow
@@ -488,7 +488,6 @@ class Ranked_Database:
                 "FROM"
                 "     {}".format(table)
         )
-
         return cursor.fetchall()
 
     def _generate_table_name(self):
@@ -515,8 +514,6 @@ class Ranked_Database:
                 "    );".format(self.table)
         )
 
-
-
     def register_variant(self, energy, name, directory, wildtype, model_id, variant_id, eval_id, pose_index, docking_file):
         conn = self.conn
         cursor = conn.execute(
@@ -536,8 +533,6 @@ class Ranked_Database:
             (energy, name, directory, bool(wildtype), model_id, variant_id, eval_id, pose_index, docking_file)
         )
         conn.commit()
-
-
 
     def by_num_mutations(self, num_mutations, table, table_name):
         like = "%" + "|%" * (num_mutations - 1)
@@ -561,6 +556,4 @@ class Ranked_Database:
                 "ORDER BY energy ASC; "
                 "DETACH DATABASE exportdb;".format(file_name, table_name, self._temp_table)
         )
-
-
         return Ranked_Database(file_name)
