@@ -1,5 +1,4 @@
-"""
-"""
+"""Exhaustive mutation-based variant generation."""
 
 
 import itertools
@@ -9,7 +8,12 @@ from gdee.misc import DataContainer, get_valid_filename
 
 
 class CombinatorialMutation:
+    """Generates all possible combinations of mutations for a given size."""
+
     def __init__(self, size, data_size):
+        """
+        Initialize combinatorial mutation generator.
+        """
         self.k = size
         self.data_size = data_size
         self.index_iter = itertools.combinations(range(data_size), self.k)
@@ -19,6 +23,9 @@ class CombinatorialMutation:
         self.change_group()
 
     def change_group(self):
+        """
+        Update mutation generator for the next combination of positions.
+        """
         self.mutations = itertools.product(Blosum()[62][0], repeat=self.k)
         try:
             self.indices = next(self.index_iter)
@@ -26,9 +33,15 @@ class CombinatorialMutation:
             self.stop = True
 
     def __iter__(self):
+        """
+        Return self as an iterator.
+        """
         return self
 
     def __next__(self):
+        """
+        Generate the next combination of mutations.
+        """
         try:
             mutations = next(self.mutations)
         except StopIteration:
@@ -42,11 +55,26 @@ class CombinatorialMutation:
 
 
 class ExhaustiveBuilder(BaseBuilder):
+    """Generates all possible amino acid variants through exhaustive enumeration.
+    
+    Systematically creates every possible combination at selected positions.
+    """
     def __init__(self, parameters, database):
+        """Initialize exhaustive variant builder.
+        
+        Args:
+            parameters: Configuration with mutation parameters
+            database: Database connection
+        """
         super().__init__(parameters, database)
         self.combinations = None
 
     def special_initialize(self):
+        """Set up exhaustive enumeration for selected residues.
+        
+        Raises:
+            RuntimeError: If no residues selected
+        """
         self.variant = self.protein.copy()
 
         if not self.parameters["selection"]:
@@ -74,6 +102,11 @@ class ExhaustiveBuilder(BaseBuilder):
             self.combinations = CombinatorialMutation(size, size)
 
     def mutations(self):
+        """Generate mutation description and indices.
+        
+        Returns:
+            tuple: (mutation_string, tuple_of_indices)
+        """
         mutations = []
         mut_index = []
         for wt_res, mut_res in zip(self.wildtype_sel, self.variant_sel):
@@ -89,6 +122,11 @@ class ExhaustiveBuilder(BaseBuilder):
         return self.protein.name, tuple(res.index for res in self.wildtype_sel)
 
     def apply_mutations(self, rules):
+        """Apply mutations from enumeration rules.
+        
+        Args:
+            rules: Iterator of (position, amino_acid) pairs
+        """
         # Clear previous mutations that won't be selected
         for wt_res, mut_res in zip(self.wildtype_sel, self.variant_sel):
             mut_res.code = wt_res.code
@@ -100,6 +138,11 @@ class ExhaustiveBuilder(BaseBuilder):
                 res.code = new_code
 
     def fetch_next_job(self):
+        """Generate next exhaustive enumeration variant.
+        
+        Returns:
+            DataContainer: Job data with variant, or None if enumeration complete
+        """
         while True:
             mut_name, mut_index = self.mutations()
             if not self.variant_exists(mut_name):

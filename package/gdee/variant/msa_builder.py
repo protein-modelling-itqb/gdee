@@ -1,6 +1,4 @@
-"""
-"""
-
+"""MSA-based variant generation from FASTA files."""
 
 import warnings
 from .base_builder import BaseBuilder
@@ -13,7 +11,17 @@ with warnings.catch_warnings():
 
 
 class MSABuilder(BaseBuilder):
+    """Generates variants from FASTA sequences via alignment.
+    
+    Creates variants by aligning BLAST results to wildtype sequence.
+    """
     def __init__(self, *args, **kwargs):
+        """Initialize MSA-based variant builder.
+        
+        Args:
+            *args: Positional arguments for BaseBuilder
+            **kwargs: Keyword arguments for BaseBuilder
+        """
         super().__init__(*args, **kwargs)
         self.wt_seq = ""
         self.msa = tuple()
@@ -21,11 +29,28 @@ class MSABuilder(BaseBuilder):
         self._is_wildtype = True
 
     def special_initialize(self):
+        """Load MSA file and prepare for iteration.
+        
+        Raises:
+            RuntimeError: If MSA file not found
+        """
         self.wt_seq = self.protein.to_modeller().replace("/", "")
         self.msa = tuple(SeqIO.parse(self.parameters["msa"], "fasta"))
         self._iter = iter(self.msa)
 
     def variant_from_alignment(self, name, other_seq):
+        """Generate variant from FASTA sequence via alignment.
+        
+        Args:
+            name: Sequence identifier
+            other_seq: Amino acid sequence string
+            
+        Returns:
+            tuple: (variant_protein, is_wildtype_flag)
+            
+        Raises:
+            RuntimeError: If alignment fails
+        """
         aligner = Align.PairwiseAligner()
         aligner.open_gap_score = -10
         aligner.substitution_matrix = substitution_matrices.load("BLOSUM62")
@@ -38,7 +63,7 @@ class MSABuilder(BaseBuilder):
         variant_iter = iter(variant.flatten())
 
         is_wildtype = True
-        for query, match, target in zip(*alignment[0].format().split()):
+        for query, target in zip(alignment[0][0], alignment[0][1]):
             if query == "-":
                 continue
 
@@ -57,6 +82,11 @@ class MSABuilder(BaseBuilder):
         return variant, is_wildtype
 
     def fetch_next_job(self):
+        """Generate next variant from FASTA sequence.
+        
+        Returns:
+            DataContainer: Job data with variant, or None if complete
+        """
         is_wildtype = False
         if self._is_wildtype:
             self._is_wildtype = False

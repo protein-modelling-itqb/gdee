@@ -1,12 +1,19 @@
-"""
-"""
-
+"""SQLite database interface for GDEE results storage."""
 
 import sqlite3 as sql
 import os
+import uuid
 
 
 def list_serialize(values):
+    """Serialize list of values to pipe-delimited string.
+
+    Args:
+        values: List of numeric or string values
+
+    Returns:
+        str: Pipe-delimited serialized string
+    """
     try:
         return "|".join(map(lambda x: "{:.4f}".format(x), values))
     except ValueError:
@@ -16,6 +23,12 @@ def list_serialize(values):
 
 
 class Database:
+    """SQLite database interface for storing GDEE results.
+
+    Manages storage of variants, models, docking results, and measurements
+    with proper relationships and constraints.
+    """
+
     def __init__(self, filename):
         if os.path.splitext(filename)[1] != ".sqlite3":
             filename += ".sqlite3"
@@ -30,7 +43,11 @@ class Database:
         self._conn.execute("PRAGMA foreign_keys = ON")
 
     def create_tables(self):
-        # Create tables
+        """Create database schema with all required tables.
+
+        Creates tables for proteins, variants, models, evaluations,
+        poses, metrics, and measurements with proper relationships.
+        """
         with self.conn:
             self.conn.executescript(
                 "CREATE TABLE IF NOT EXISTS"
@@ -144,6 +161,15 @@ class Database:
         return self._conn
 
     def register_protein(self, name, uniprot=None):
+        """Register a protein target.
+
+        Args:
+            name: Protein name
+            uniprot: UniProt accession code (optional)
+
+        Returns:
+            int: Protein database ID
+        """
         conn = self.conn
         cursor = conn.execute(
             "SELECT"
@@ -175,6 +201,14 @@ class Database:
         return cursor.lastrowid
 
     def fetch_variants(self, prot_id):
+        """Fetch all variants for a protein.
+
+        Args:
+            prot_id: Protein database ID
+
+        Returns:
+            list: List of (name, variant_id) tuples
+        """
         cursor = self.conn.execute(
             "SELECT"
             "    name "
@@ -187,6 +221,15 @@ class Database:
         return cursor.fetchall()
 
     def variant_exists(self, prot_id, mutations):
+        """Check if variant exists.
+
+        Args:
+            prot_id: Protein database ID
+            mutations: Variant name
+
+        Returns:
+            bool: True if variant exists
+        """
         cursor = self.conn.execute(
             "SELECT EXISTS ("
             "    SELECT"
@@ -203,6 +246,20 @@ class Database:
         return bool(cursor.fetchone()[0])
 
     def register_variant(self, prot_id, name, sequence, directory, wildtype, pdb_file=None, pdb_code=None):
+        """Register a new variant.
+
+        Args:
+            prot_id: Parent protein database ID
+            name: Variant name
+            sequence: MODELLER format sequence
+            directory: Working directory path
+            wildtype: Whether variant is wildtype
+            pdb_file: Template PDB file (optional)
+            pdb_code: PDB code (optional)
+
+        Returns:
+            int: Variant database ID
+        """
         conn = self.conn
         cursor = conn.execute(
             "INSERT INTO"
@@ -236,6 +293,18 @@ class Database:
         return cursor.lastrowid
 
     def register_model(self, variant_id, method, scores, pdb_file, rejected):
+        """Register a 3D model.
+
+        Args:
+            variant_id: Parent variant database ID
+            method: Modeling method name
+            scores: JSON-formatted quality scores
+            pdb_file: Path to model PDB file
+            rejected: Whether model failed quality assessment
+
+        Returns:
+            int: Model database ID
+        """
         conn = self.conn
         cursor = conn.execute(
             "INSERT INTO"
@@ -254,6 +323,16 @@ class Database:
         return cursor.lastrowid
 
     def register_evaluation(self, variant_id, model_id, evaluation):
+        """Register a docking evaluation.
+
+        Args:
+            variant_id: Variant database ID
+            model_id: Model database ID
+            evaluation: Evaluation data container
+
+        Returns:
+            int: Evaluation database ID
+        """
         conn = self.conn
         cursor = conn.execute(
             "INSERT INTO"
@@ -272,6 +351,15 @@ class Database:
         return cursor.lastrowid
 
     def register_poses(self, eval_id, energy):
+        """Register docking poses with energies.
+
+        Args:
+            eval_id: Evaluation database ID
+            energy: List of binding energies
+
+        Returns:
+            list: List of pose database IDs
+        """
         pose_id = []
         conn = self.conn
         cursor = conn.cursor()
@@ -308,6 +396,15 @@ class Database:
         return None
 
     def register_metric(self, name, identifier):
+        """Register a measurement metric.
+
+        Args:
+            name: Metric name
+            identifier: Unique metric identifier
+
+        Returns:
+            int: Metric database ID
+        """
         if name not in self._metric_ids:
             conn = self.conn
             metric_id = self.fetch_metric_id(name)
@@ -330,6 +427,13 @@ class Database:
         return self._metric_ids[name]
 
     def register_measurements(self, eval_id, pose_id_list, measurements):
+        """Register computed measurements.
+
+        Args:
+            eval_id: Evaluation database ID
+            pose_id_list: List of pose database IDs
+            measurements: List of measurement data containers
+        """
         cursor = self.conn.cursor()
         for measurer in measurements:
             metric_id = self.register_metric(measurer.name, measurer.identifier)
@@ -347,3 +451,109 @@ class Database:
                 )
 
         self.conn.commit()
+
+
+class Ranked_Database:
+    def __init__(self, filename):
+        if os.path.splitext(filename)[1] != ".sqlite3":
+            filename += ".sqlite3"
+
+        self.filename = filename
+        self.table = None
+        self._conn = None
+
+    def connect(self):
+        # Connect to database
+        self._conn = sql.connect(self.filename, timeout=120)
+        self._conn.execute("PRAGMA foreign_keys = ON")
+
+    @property
+    def conn(self):
+        # Database is connected only when needed to allow
+        # for multiple instantiations on MPI platform
+        if self._conn is None:
+            self.connect()
+            if self.table is not None:
+                self.create_table()
+
+        return self._conn
+
+    def fetch_ranked_variants(self, table):
+        """
+        Fetch all variants from ranked table.
+        """
+        cursor = self.conn.execute(
+                "SELECT"
+                "     * "
+                "FROM"
+                "     {}".format(table)
+        )
+        return cursor.fetchall()
+
+    def _generate_table_name(self):
+        """
+        Generate a unique table name for temporary ranked results.
+        """
+        return "R" + str(uuid.uuid4()).replace("-", "")
+
+    def create_table(self):
+        # Create table
+        with self.conn:
+            self.conn.executescript(
+                "CREATE TABLE IF NOT EXISTS"
+                "    {} ("
+                "        energy FLOAT NOT NULL,"
+                "        name TEXT NOT NULL,"
+                "        directory TEXT NOT NULL,"
+                "        is_wildtype INT NOT NULL,"
+                "        model_id INT NOT NULL,"
+                "        variant_id INT NOT NULL,"
+                "        eval_id INT NOT NULL,"
+                "        pose_index INT NOT NULL,"
+                "        docking_file TEXT NOT NULL"
+                "    );".format(self.table)
+        )
+
+    def register_variant(self, energy, name, directory, wildtype, model_id, variant_id, eval_id, pose_index, docking_file):
+        conn = self.conn
+        cursor = conn.execute(
+            "INSERT INTO"
+            "    {} ("
+            "        energy,"
+            "        name,"
+            "        directory,"
+            "        is_wildtype,"
+            "        model_id,"
+            "        variant_id,"
+            "        eval_id,"
+            "        pose_index,"
+            "        docking_file"
+            "    ) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);".format(self.table),
+            (energy, name, directory, bool(wildtype), model_id, variant_id, eval_id, pose_index, docking_file)
+        )
+        conn.commit()
+
+    def by_num_mutations(self, num_mutations, table, table_name):
+        like = "%" + "|%" * (num_mutations - 1)
+        not_like = "%" + "|%" * num_mutations
+        self._temp_table = self._generate_table_name()
+        self.conn.execute(
+            "CREATE TEMP TABLE {} AS "
+            "SELECT * "
+            "FROM {} "
+            "WHERE name LIKE '{}' AND name NOT LIKE '{}';".format(self._temp_table, table, like, not_like)
+        )
+        return self.export_sqlite(self.filename, table_name)
+
+    def export_sqlite(self, file_name, table_name):
+        self.conn.executescript(
+                "ATTACH DATABASE '{0}' AS exportdb; "
+                "DROP TABLE IF EXISTS exportdb.{1}; "
+                "CREATE TABLE 'exportdb'.'{1}' AS "
+                "SELECT * "
+                "FROM {2} "
+                "ORDER BY energy ASC; "
+                "DETACH DATABASE exportdb;".format(file_name, table_name, self._temp_table)
+        )
+        return Ranked_Database(file_name)

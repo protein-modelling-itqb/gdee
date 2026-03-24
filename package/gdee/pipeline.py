@@ -1,6 +1,4 @@
-"""
-"""
-
+"""Pipeline orchestration for workflow execution."""
 
 from gdee import files
 from gdee.variant import VariantBuilderFactory
@@ -11,13 +9,16 @@ from path import Path
 import tarfile
 import os
 import traceback
+from gdee.analysis.rescoring import Rescore
 
 
-__all__ = ["PipelineFactory"]
+__all__ = ["PipelineFactory", "RescoreFactory"]
 
 
 class PipelineFactory:
+    """Factory for creating pipeline instances."""
     def __init__(self):
+        """Initialize pipeline factory."""
         self.protein_name = None
         self.programs = {}
         self.work_dir = None
@@ -31,9 +32,14 @@ class PipelineFactory:
         self.evaluator_parameters = {}
 
     def make(self):
-        self.pdb = Path(self.pdb).abspath()
+        """Create and configure pipeline instance.
+
+        Returns:
+            Pipeline: Configured pipeline object
+        """
+        self.pdb = Path(self.pdb).absolute()
         pipeline = Pipeline()
-        base_dir = Path(self.work_dir).abspath()
+        base_dir = Path(self.work_dir).absolute()
         pipeline.work_dir = base_dir / "files"
         pipeline.work_dir.makedirs_p()
 
@@ -74,9 +80,11 @@ class PipelineFactory:
 
 
 class Pipeline:
+    """Main pipeline for processing protein variants."""
     def __init__(self):
+        """Initialize pipeline."""
         self.database = None
-        self.work_dir = Path().abspath()
+        self.work_dir = Path().absolute()
         self.archiver = files.Archiver("files", ".{:06d}", 1000)
         self._variant_builder = None
         self.task_list = []
@@ -84,16 +92,39 @@ class Pipeline:
 
     @property
     def variant_builder(self):
+        """Get variant builder.
+
+        Returns:
+            BaseBuilder: Variant generation strategy
+        """
         return self._variant_builder
 
     @variant_builder.setter
     def variant_builder(self, obj):
+        """Set variant builder.
+
+        Args:
+            obj: Variant builder instance
+        """
         self._variant_builder = obj
 
     def add_task(self, task):
+        """Add processing task to pipeline.
+
+        Args:
+            task: Task object with run() method
+        """
         self.task_list.append(task)
 
     def next_job(self, size):
+        """Get next batch of jobs.
+
+        Args:
+            size: Number of jobs to retrieve
+
+        Returns:
+            list: List of job data containers
+        """
         job_list = []
 
         if self._terminate:
@@ -109,6 +140,14 @@ class Pipeline:
         return job_list
 
     def run_pipeline(self, job_data):
+        """Execute all pipeline tasks on job.
+
+        Args:
+            job_data: Job data to process
+
+        Returns:
+            DataContainer: Processed job data
+        """
         try:
             job_dir = self.work_dir / job_data.variant_dir
             job_data.job_dir = job_dir
@@ -127,6 +166,11 @@ class Pipeline:
         return job_data
 
     def save_results(self, data):
+        """Save processing results.
+
+        Args:
+            data: List of job results
+        """
         for result in data:
             try:
                 self._variant_builder.save_results(result)
@@ -139,7 +183,108 @@ class Pipeline:
                 self._variant_builder.unsave_results(data)
 
     def terminate(self):
+        """Request pipeline termination."""
         self._terminate = True
 
     def finalize(self):
+        """Finalize pipeline execution."""
         self.archiver.finalize()
+
+
+class RescoreFactory:
+    """Factory for creating rescoring pipeline."""
+    def __init__(self):
+        """Initialize rescoring factory."""
+        self.table = None
+        self.pickle_path = None
+        self.input_db = None
+        self.output_db = None
+        self.files_path = None
+
+    def make(self):
+        """Create rescoring pipeline.
+
+        Returns:
+            RescorePipeline: Configured rescoring pipeline
+        """
+        pipeline = RescorePipeline()
+
+        rescore = Rescore(self.output_db, self.table)
+        rescore.pickle_path = self.pickle_path
+        rescore.path = Path(self.files_path).absolute()
+        rescore.get_variants(self.input_db)
+
+        pipeline.rescore = rescore
+
+        return pipeline
+
+class RescorePipeline:
+    """Pipeline for re-scoring docking poses."""
+    def __init__(self):
+        """Initialize rescoring pipeline."""
+        self.work_dir = Path().absolute()
+        self.rescore = None
+        self._terminate = False
+        self._created = False
+
+    def next_job(self, size):
+        """Get next batch of rescoring jobs.
+
+        Args:
+            size: Number of jobs to retrieve
+
+        Returns:
+            list: List of job data containers
+        """
+        job_list = []
+
+        if self._terminate:
+            return job_list
+
+        for i in range(size):
+            job = self.rescore.fetch_next_job()
+            if job is None:
+                break
+
+            job_list.append(job)
+
+        return job_list
+
+    def run_pipeline(self, job_data):
+        """Execute rescoring on job.
+
+        Args:
+            job_data: Job data with poses to rescore
+
+        Returns:
+            DataContainer: Job data with rescored results
+        """
+        try:
+            job_data.fatal_error = False
+
+            job_data = self.rescore.run(job_data)
+            if job_data.fatal_error:
+                return job_data
+
+        except Exception as error:
+            job_data.fatal_error = True
+            print("Exception caught:", traceback.print_exc(), error, sep="\n")
+
+        return job_data
+
+    def save_results(self, data):
+        """Save rescoring results.
+
+        Args:
+            data: List of job results
+        """
+        for result in data:
+            try:
+                self.rescore.save_results(result)
+
+            except Exception as error:
+                print("Exception caught:", traceback.print_exc(), error, sep="\n")
+
+    def finalize(self):
+        """Finalize pipeline execution."""
+        self._terminate = True

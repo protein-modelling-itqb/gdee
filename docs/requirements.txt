@@ -1,0 +1,5 @@
+sphinx>=7
+sphinx-rtd-theme>=2
+numpy>=1.14
+path>=13.0
+biopython>=1.75
