@@ -3,6 +3,7 @@
 
 
 from .vina import VinaDocking, VinardoDocking
+from .rescoring import RescoringDocking
 
 
 __all__ = ["EvaluatorFactory"]
@@ -28,5 +29,10 @@ class EvaluatorFactory:
         elif name == "vinardo":
             return VinardoDocking(self.parameters)
 
+        elif name == "rescore":
+            return RescoringDocking(self.parameters)
+
         else:
             raise RuntimeError("Evaluator '{}' does not exists.".format(name))
+
+

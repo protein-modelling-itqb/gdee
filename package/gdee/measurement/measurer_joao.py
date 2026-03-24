@@ -58,12 +58,13 @@ class Measurer:
         modeling = job_data.modeling
         lig_name = self.ligand_name
 
+
         # Check if there is at least one evaluation
         ligand_pdb = None
         protein_pdb = None
         for model in modeling.models:
             if lig_name in model.evals:
-                ligand_pdb = model.evals[lig_name][0].pdb
+                ligand_pdb = model.evals[lig_name].pdb
                 protein_pdb = model.pdb
                 break
 
@@ -83,7 +84,12 @@ class Measurer:
             if lig_name not in model.evals:
                 continue
 
-            evaluation = model.evals[lig_name][0]
+            if f'{lig_name}_rescore' in model.evals:
+                evaluation_rescore = model.evals[f'{lig_name}_rescore']
+                if "measurements" not in evaluation_rescore:
+                    evaluation_rescore.measurements = []
+
+            evaluation = model.evals[lig_name]
             protein.load_new(str(job_dir / model.pdb))
             ligand.load_new(str(job_dir / evaluation.pdb))
 
@@ -95,9 +101,15 @@ class Measurer:
             if "measurements" not in evaluation:
                 evaluation.measurements = []
 
+
             for task in self.task_list:
                 if task.enabled:
                     evaluation.measurements.append(task.to_container())
+                    try:
+                        evaluation_rescore.measurements.append(task.to_container())
+                    except:
+                        continue
                 task.clear()
+
 
         return job_data

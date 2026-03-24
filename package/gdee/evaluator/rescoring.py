@@ -1,6 +1,7 @@
-"""AutoDock Vina/Vinardo molecular docking implementation."""
+"""
+"""
 
-import os
+import sys
 import numpy as np
 from path import Path
 import MDAnalysis as mda
@@ -9,23 +10,13 @@ from tempfile import TemporaryDirectory
 from .pdbqt import PDBQT
 from gdee.misc import DataContainer
 import warnings
+from oddt.virtualscreening import virtualscreening as vs
+import math
 
 warnings.filterwarnings("ignore", module=r"MDAnalysis.*")
 
 
 def external_command(arguments, name):
-    """Execute external command and check for errors.
-
-    Args:
-        arguments: List of command arguments
-        name: Job name for error reporting
-
-    Returns:
-        subprocess.CompletedProcess: Command result
-
-    Raises:
-        RuntimeError: If command fails
-    """
     proc = subprocess.run(
         arguments,
         check=False,
@@ -37,34 +28,19 @@ def external_command(arguments, name):
         raise RuntimeError("Error processing job '{}':\n{}\n".format(name, proc.stderr.decode("UTF-8")))
 
 
-class BaseVina:
-    """Base class for Vina-based docking engines.
-
-    Handles protein preparation, search box validation, and result processing.
-    """
+class RescoringDocking:
     def __init__(self, parameters):
-        """Initialize Vina docking base.
-
-        Args:
-            parameters: Docking configuration dictionary
-        """
         self.parameters = parameters
-        self.name = ""
-        self.program = ""
         self.ligand = parameters["ligand"]
-        self.extra_arguments = []
         self.prepare_receptor = Path(parameters["mgltools"]) / "MGLToolsPckgs/AutoDockTools/Utilities24/prepare_receptor4.py"
-        self.atom_type = parameters['atom_type']
+        self.name = "vina"
+        self.program = parameters["vina"]
+        self.n_cpu = -1
+        self.pickle_path = parameters["function"] # It can be a path to a pickle file or the name of the scoring function to train
+        self.ligands_type = "pdbqt"
+
 
     def run(self, job_data):
-        """Execute docking for all models in job.
-
-        Args:
-            job_data: Job data with models to dock
-
-        Returns:
-            DataContainer: Job data with docking results
-        """
         job_dir = job_data.job_dir
         temp_dir = TemporaryDirectory(prefix="gdee_docking")
         temp_path = Path(temp_dir.name)
@@ -114,33 +90,35 @@ class BaseVina:
                     docking.energies = [model.energy for model in pdbqt]
 
                     model.evals[self.ligand.name] = [docking]
-                        
+
+                    # run rescoring
+
+                    results, rescoring_method = self.run_rescoring("results.pdbqt", str(job_dir / model.pdb), self.pickle_path)
+
+                    rescoring = DataContainer()
+                    rescoring.ligand_name = self.ligand.name
+                    rescoring.ligand_file = self.ligand.filename
+                    rescoring.method = rescoring_method
+                    rescoring.pdb = results_pdb
+                    rescoring.energies = [self.kd_to_energy(float(results[index])) for index in range(0,len(results))]
+                       
+
+                    # Adding the results to job_data                    
+                    model.evals[self.ligand.name].append(rescoring)
 
                     
         return job_data
 
     def run_docking(self, job_data):
-        """Prepare receptor PDBQT from PDB.
-           Execute docking command.
-
-        Args:
-            job_data: Job data
-        """
         # Generate model's PDBQT
         command = [
             self.prepare_receptor,
             "-r", "model.pdb",
             "-o", "model.pdbqt",
             "-A", "checkhydrogens",
-            "-U", "nphs_lps_waters"
         ]
 
         external_command(command, job_data.variant.name)
-
-        # Run atom type patch
-        if self.atom_type:
-            self.atom_type_patch('model.pdbqt')
-
 
         # Run docking
         box_center = "--center_x {:.2f} --center_y {:.2f} --center_z {:.2f}".format(*self.parameters["box_center"])
@@ -156,67 +134,54 @@ class BaseVina:
             "--ligand", "ligand.pdbqt",
             "--out", "results.pdbqt"
         ] + box_center.split(" ") + box_size.split(" ")
-        command += self.extra_arguments
         command = list(map(str, command))
 
         external_command(command, job_data.variant.name)
 
 
-    def atom_type_patch(self, pdbqt):
-        """
-        Patch PDBQT file to update atom types based on provided mapping.
-        """
-        new_pdbqt = 'model_patched.pdbqt'
+    
+    def run_rescoring(self, ligand, protein, pickle_path):
+        vs_rescore = vs(n_cpu=self.n_cpu)
+        vs_rescore.load_ligands(self.ligands_type, ligand)
+        vs_rescore.score(function=pickle_path, protein=protein)
 
-        with open(pdbqt, 'r') as f, open(new_pdbqt, 'w') as nf:
-            for line in f:
-                write_line = True
-                if line.startswith('ATOM'):
-                    # "{name}:{chain}:{id}"
-                    atom = "{}:{}:{}".format(line[12:16].strip(), line[21:22], line[22:26].strip())
-                    if atom in self.atom_type:
-                        if self.atom_type[atom] == "r":
-                            write_line = False
-                        else:
-                            line = line[:77] + "{}\n".format(self.atom_type[atom])
-                if write_line:
-                    nf.write(line)
+        # Save results
+        results =  []
+        rescoring_method = ''
+        for mol in vs_rescore.fetch():
+            data = mol.data.to_dict()
+            
+            if len(data) > 0:
+                data['name'] = mol.title
+            else:
+                print('There is no data', file=sys.stderr)
+                return False
 
-        os.remove(pdbqt)
-        os.rename(new_pdbqt, pdbqt)
+            for key in data:
+                if key.startswith('rf'):
+                    results.append(data[key])
+                    rescoring_method = key
+                elif key.startswith('nn'):
+                    results.append(data[key])
+                    rescoring_method = key
+                elif key.startswith('PLEC'):
+                    results.append(data[key])
+                    rescoring_method = key
 
-
-class VinaDocking(BaseVina):
-    """AutoDock Vina docking implementation."""
-    def __init__(self, parameters, *args, **kwargs):
-        """Initialize Vina docking.
-
-        Args:
-            parameters: Docking configuration
-            *args: Additional positional arguments
-            **kwargs: Additional keyword arguments
-        """
-        super().__init__(parameters, *args, **kwargs)
-        self.name = "vina"
-        self.program = parameters["vina"]
+        return results, rescoring_method
 
 
-class VinardoDocking(BaseVina):
-    """Vinardo docking implementation.
 
-    Uses Vinardo scoring function via Smina.
-    """
-    def __init__(self, parameters, *args, **kwargs):
-        """Initialize Vinardo docking.
 
-        Args:
-            parameters: Docking configuration
-            *args: Additional positional arguments
-            **kwargs: Additional keyword arguments
-        """
-        super().__init__(parameters, *args, **kwargs)
-        self.name = "vinardo"
-        self.program = parameters["vinardo"]
-        self.extra_arguments = ["--scoring", "vinardo"]
+    def kd_to_energy(self, pkd):
+        R = 8.314
+        T = 298.15 
+        kd = pow(10, -(float(pkd)))
+        j = R * T * (math.log(float(kd)))
+        kj = j / 1000
+        kcal = kj / 4.18
+        return kcal
+
+    
 
 
