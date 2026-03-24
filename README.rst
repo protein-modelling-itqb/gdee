@@ -103,14 +103,20 @@ Re-evaluate existing docking results with trained metamodel:
 
 .. code-block:: python
 
-    from gdee import RescoreVariants
+    from gdee import RescoreVariants, Ranked_Database
+
+    # Open existing results database as a Ranked_Database-like object
+    ranked_db = Ranked_Database("results.db")
+
+    # List of trained scoring function model files
+    scoring_functions = ["scoring_functions.pkl"]
 
     # Perform rescoring on existing results
     rescorer = RescoreVariants(
-        in_db="results.db",
+        in_db=ranked_db,
         out_db="rescored_results.db",
         table="rescored_poses",
-        functions="scoring_functions.pkl",
+        functions=scoring_functions,
         files_path="/path/to/structure/files"
     )
 
