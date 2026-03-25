@@ -33,6 +33,8 @@ autodoc_mock_imports = [
     "modeller",
     "MDAnalysis",
     "mpi4py",
+    "oddt",
+    "openbabel",
 ]
 
 templates_path = ["_templates"]
